@@ -236,6 +236,10 @@ if(NOT INSTALLER_RUN)
 		add_subdirectory(libobs-winrt)
 	endif()
 
+	if(APPLE AND ${CMAKE_SYSTEM_VERSION} GREATER_EQUAL 19)
+		add_subdirectory(libobs-metal)
+	endif()
+
 	add_subdirectory(libobs-opengl)
 	add_subdirectory(libobs)
 	add_subdirectory(plugins)
