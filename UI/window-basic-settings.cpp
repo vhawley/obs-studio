@@ -569,8 +569,6 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		ui->processPriority->addItem(QTStr(pri.name), pri.val);
 
 #else
-	delete ui->rendererLabel;
-	delete ui->renderer;
 	delete ui->adapterLabel;
 	delete ui->adapter;
 	delete ui->processPriorityLabel;
@@ -583,8 +581,6 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 #if defined(__APPLE__) || HAVE_PULSEAUDIO
 	delete ui->disableAudioDucking;
 #endif
-	ui->rendererLabel = nullptr;
-	ui->renderer = nullptr;
 	ui->adapterLabel = nullptr;
 	ui->adapter = nullptr;
 	ui->processPriorityLabel = nullptr;
@@ -1262,11 +1258,17 @@ void OBSBasicSettings::LoadGeneralSettings()
 
 void OBSBasicSettings::LoadRendererList()
 {
-#ifdef _WIN32
-	const char *renderer =
+#if defined(_WIN32) || (defined(__APPLE__) && defined(__MAC_10_15))
+    const char *renderer =
 		config_get_string(GetGlobalConfig(), "Video", "Renderer");
 
+#if defined(_WIN32)
 	ui->renderer->addItem(QT_UTF8("Direct3D 11"));
+#endif
+    
+#if (defined(__APPLE__) && defined(__MAC_10_15))
+    ui->renderer->addItem(QT_UTF8("Metal"));
+#endif
 	if (opt_allow_opengl || strcmp(renderer, "OpenGL") == 0)
 		ui->renderer->addItem(QT_UTF8("OpenGL"));
 
