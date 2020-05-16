@@ -16,27 +16,32 @@ const char *device_preprocessor_name(void)
     return "_METAL";
 }
 
+gs_device::gs_device(uint32_t adapter) {
+    NSArray *metalDevices = MTLCopyAllDevices();
+    
+    deviceIndex = adapter;
+    
+    NSUInteger numDevices = [metalDevices count];
+    if (!metalDevices || numDevices < 1 || adapter > numDevices - 1) {
+        throw "Failed to get Metal devices";
+    }
+    
+    device = [metalDevices objectAtIndex:deviceIndex];
+    renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
+    renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    commandQueue = [device newCommandQueue];
+}
+
 int device_create(gs_device_t **p_device, uint32_t adapter)
 {
     gs_device *device = NULL;
     blog(LOG_INFO, "---------------------------------");
     blog(LOG_INFO, "Initializing Metal...");
 
-    id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
-    
-    if (!metalDevice) {
-        blog(LOG_ERROR, "device_create (Metal) failed: Failed to get system default device");
-        *p_device = NULL;
+    device = new gs_device(adapter);
+    blog(LOG_INFO, "device_create (Metal): Found adapter %s", [device->device.name UTF8String]);
 
-        return GS_ERROR_NOT_SUPPORTED;
-    }
-    
-    blog(LOG_INFO, "device_create (Metal): Found adapter %s", [metalDevice.name UTF8String]);
-    
-    device = new gs_device();
-    device->device = metalDevice;
     *p_device = device;
-    
     return GS_SUCCESS;
 }
 
