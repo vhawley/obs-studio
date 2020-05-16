@@ -9,7 +9,8 @@ set(libobs-metal_PLATFORM_DEPS
 add_definitions(-DLIBOBS_EXPORTS)
 
 set(libobs-metal_SOURCES
-	metal-subsystem.mm)
+	metal-subsystem.mm
+	metal-shader.mm)
 
 set(libobs-metal_HEADERS
 	metal-subsystem.hpp)
