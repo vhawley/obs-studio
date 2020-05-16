@@ -5,3 +5,8 @@
 #include <iostream>
 
 #include <Metal/Metal.h>
+#include <MetalKit/MetalKit.h>
+
+struct gs_device {
+    id<MTLDevice> device;
+};

@@ -24,14 +24,18 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 
     id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
     
-    blog(LOG_INFO, "device_create (Metal): Found adapter %s", [metalDevice.name UTF8String]);
-
     if (!metalDevice) {
         blog(LOG_ERROR, "device_create (Metal) failed: Failed to get system default device");
         *p_device = NULL;
 
         return GS_ERROR_NOT_SUPPORTED;
     }
+    
+    blog(LOG_INFO, "device_create (Metal): Found adapter %s", [metalDevice.name UTF8String]);
+    
+    device = new gs_device();
+    device->device = metalDevice;
+    *p_device = device;
     
     return GS_SUCCESS;
 }
