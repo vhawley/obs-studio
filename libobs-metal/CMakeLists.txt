@@ -9,13 +9,23 @@ set(libobs-metal_PLATFORM_DEPS
 add_definitions(-DLIBOBS_EXPORTS)
 
 set(libobs-metal_SOURCES
-	metal-subsystem.mm
+	metal-device.mm
+	metal-indexbuffer.mm
+	metal-rebuild.mm
+	metal-samplerstate.mm
 	metal-shader.mm
-	metal-device.mm)
+	metal-shaderbuilder.cpp
+	metal-shaderprocessor.mm
+	metal-stagesurf.mm
+	metal-subsystem.mm
+	metal-swapchain.mm
+	metal-texture2d.mm
+	metal-vertexbuffer.mm
+	metal-zstencilbuffer.mm)
 
 set(libobs-metal_HEADERS
-	metal-subsystem.hpp
-	metal-device.hpp)
+	metal-shaderprocessor.hpp
+	metal-subsystem.hpp)
 
 add_library(libobs-metal SHARED
 	${libobs-metal_SOURCES}
