@@ -10,10 +10,12 @@ add_definitions(-DLIBOBS_EXPORTS)
 
 set(libobs-metal_SOURCES
 	metal-subsystem.mm
-	metal-shader.mm)
+	metal-shader.mm
+	metal-device.mm)
 
 set(libobs-metal_HEADERS
-	metal-subsystem.hpp)
+	metal-subsystem.hpp
+	metal-device.hpp)
 
 add_library(libobs-metal SHARED
 	${libobs-metal_SOURCES}

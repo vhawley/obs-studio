@@ -1,3 +1,4 @@
+#include "metal-device.hpp"
 #include "metal-subsystem.hpp"
 
 /** Start device functions
@@ -16,21 +17,6 @@ const char *device_preprocessor_name(void)
     return "_METAL";
 }
 
-gs_device::gs_device(uint32_t adapter) {
-    NSArray *metalDevices = MTLCopyAllDevices();
-    
-    deviceIndex = adapter;
-    
-    NSUInteger numDevices = [metalDevices count];
-    if (!metalDevices || numDevices < 1 || adapter > numDevices - 1) {
-        throw "Failed to get Metal devices";
-    }
-    
-    device = [metalDevices objectAtIndex:deviceIndex];
-    renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
-    renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    commandQueue = [device newCommandQueue];
-}
 
 int device_create(gs_device_t **p_device, uint32_t adapter)
 {
