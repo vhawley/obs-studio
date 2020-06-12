@@ -1,6 +1,14 @@
 #include "metal-device.hpp"
 #include "metal-subsystem.hpp"
 
+/** Start gs_swap_chain functions
+ */
+
+gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data) {
+    layer = [CAMetalLayer layer];
+    layer.device = device->device;
+}
+
 /** Start device functions
 */
 
@@ -33,17 +41,17 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 
 void device_destroy(gs_device_t *device)
 {
-    
+    delete device;
 }
 
 void device_enter_context(gs_device_t *device)
 {
-    
+    UNUSED_PARAMETER(device);
 }
 
 void device_leave_context(gs_device_t *device)
 {
-    
+    UNUSED_PARAMETER(device);
 }
 
 void *device_get_device_obj(gs_device_t *device)
@@ -59,23 +67,68 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 
 void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
 {
+    if (!(device->swapChain)) {
+        blog(LOG_ERROR, "device_resize (Metal): No swap chain");
+        return;
+    }
     
+//    try {
+//        id<MTLTexture> renderTarget = nil;
+//        id<MTLTexture> zstencilTarget = nil;
+//
+//        device->renderPassDescriptor.colorAttachments[0].texture = nil;
+//        device->renderPassDescriptor.depthAttachment.texture     = nil;
+//        device->renderPassDescriptor.stencilAttachment.texture   = nil;
+//        device->swapChain->Resize(cx, cy);
+//
+//        if (device->curRenderTarget)
+//            renderTarget = device->curRenderTarget->texture;
+//        if (device->curZStencilBuffer)
+//            zstencilTarget  = device->curZStencilBuffer->texture;
+//
+//        device->passDesc.colorAttachments[0].texture = renderTarget;
+//        device->passDesc.depthAttachment.texture     = zstencilTarget;
+//        device->passDesc.stencilAttachment.texture   = zstencilTarget;
+//      } catch (const char *error) {
+//         blog(LOG_ERROR, "device_resize (Metal): %s", error);
+//     }
 }
+
 
 void device_get_size(const gs_device_t *device, uint32_t *x,
                      uint32_t *y)
 {
-    
+    if (device->swapChain) {
+        CGSize size = device->swapChain->layer.drawableSize;
+        *x = size.width;
+        *y = size.height;
+    } else {
+        blog(LOG_WARNING, "device_get_size (Metal): No swap chain");
+        *x = 0;
+        *y = 0;
+    }
 }
 
 uint32_t device_get_width(const gs_device_t *device)
 {
-    
+    if (device->swapChain) {
+        CGSize size = device->swapChain->layer.drawableSize;
+        return size.width;
+    } else {
+        blog(LOG_WARNING, "device_get_width (Metal): No swap chain");
+        return 0;
+    }
 }
 
 uint32_t device_get_height(const gs_device_t *device)
 {
-    
+    if (device->swapChain) {
+        CGSize size = device->swapChain->layer.drawableSize;
+        return size.height;
+    } else {
+        blog(LOG_WARNING, "device_get_height (Metal): No swap chain");
+        return 0;
+    }
 }
 
 gs_texture_t *

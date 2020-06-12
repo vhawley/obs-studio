@@ -14,6 +14,7 @@ struct gs_device {
     id<MTLCommandQueue> commandQueue;
     
     uint32_t deviceIndex;
+    gs_swap_chain *swapChain;
     
     MTLRenderPassDescriptor *renderPassDescriptor;
     MTLRenderPipelineDescriptor *renderPipelineDescriptor;

@@ -1,10 +1,21 @@
 project(libobs-metal)
 
+find_library(APPKIT AppKit)
+mark_as_advanced(APPKIT)
+include_directories(${APPKIT})
+
+find_library(QUARTZCORE QuartzCore)
+mark_as_advanced(QUARTZCORE)
+include_directories(${QUARTZCORE})
+
 find_library(METAL Metal)
+mark_as_advanced(METAL)
 include_directories(${METAL})
 
 set(libobs-metal_PLATFORM_DEPS
-	${METAL})
+	${APPKIT}
+    ${QUARTZCORE}
+    ${METAL})
 
 add_definitions(-DLIBOBS_EXPORTS)
 
