@@ -71,29 +71,7 @@ void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
         blog(LOG_ERROR, "device_resize (Metal): No swap chain");
         return;
     }
-    
-//    try {
-//        id<MTLTexture> renderTarget = nil;
-//        id<MTLTexture> zstencilTarget = nil;
-//
-//        device->renderPassDescriptor.colorAttachments[0].texture = nil;
-//        device->renderPassDescriptor.depthAttachment.texture     = nil;
-//        device->renderPassDescriptor.stencilAttachment.texture   = nil;
-//        device->swapChain->Resize(cx, cy);
-//
-//        if (device->curRenderTarget)
-//            renderTarget = device->curRenderTarget->texture;
-//        if (device->curZStencilBuffer)
-//            zstencilTarget  = device->curZStencilBuffer->texture;
-//
-//        device->passDesc.colorAttachments[0].texture = renderTarget;
-//        device->passDesc.depthAttachment.texture     = zstencilTarget;
-//        device->passDesc.stencilAttachment.texture   = zstencilTarget;
-//      } catch (const char *error) {
-//         blog(LOG_ERROR, "device_resize (Metal): %s", error);
-//     }
 }
-
 
 void device_get_size(const gs_device_t *device, uint32_t *x,
                      uint32_t *y)
@@ -131,24 +109,40 @@ uint32_t device_get_height(const gs_device_t *device)
     }
 }
 
-gs_texture_t *
-device_texture_create(gs_device_t *device, uint32_t width, uint32_t height,
+gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_t height,
               enum gs_color_format color_format, uint32_t levels,
                       const uint8_t **data, uint32_t flags)
 {
+    gs_texture *texture;
     
+    try {
+        texture = new gs_texture(device, width, height, color_format, levels, data, flags);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_texture_create (Metal): %s", error);
+    }
+
+    return texture;
 }
 
-gs_texture_t *
-device_cubetexture_create(gs_device_t *device, uint32_t size,
+gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags)
+{
+    this->device = device;
+    this->width = width;
+    this->height = height;
+    this->color_format = color_format;
+    this->levels = levels;
+    this->data = data;
+    this->flags = flags;
+}
+
+gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
               enum gs_color_format color_format, uint32_t levels,
                           const uint8_t **data, uint32_t flags)
 {
     
 }
 
-gs_texture_t *
-device_voltexture_create(gs_device_t *device, uint32_t width, uint32_t height,
+gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint32_t height,
              uint32_t depth, enum gs_color_format color_format,
              uint32_t levels, const uint8_t *const *data,
                          uint32_t flags)
@@ -489,23 +483,29 @@ void gs_texture_destroy(gs_texture_t *tex)
 
 uint32_t gs_texture_get_width(const gs_texture_t *tex)
 {
-    
+    const gs_texture *text = static_cast<const gs_texture*>(tex);
+    return text->height;
 }
 
 uint32_t gs_texture_get_height(const gs_texture_t *tex)
 {
-    
+    const gs_texture *text = static_cast<const gs_texture*>(tex);
+    return text->height;
 }
 
 enum gs_color_format gs_texture_get_color_format(const gs_texture_t *tex)
 {
-    
+    const gs_texture *text = static_cast<const gs_texture*>(tex);
+    return text->color_format;
 }
 
 bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr,
 uint32_t *linesize)
 {
-    
+    gs_texture *text = static_cast<gs_texture*>(tex);
+    *linesize = text->width * gs_get_format_bpp(text->color_format) / 8;
+    *ptr = (uint8_t*)malloc(sizeof(uint8_t) * text->height * *linesize);
+    return true;
 }
 
 void gs_texture_unmap(gs_texture_t *tex)
