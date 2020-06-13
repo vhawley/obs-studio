@@ -116,7 +116,7 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     gs_texture *texture;
     
     try {
-        texture = new gs_texture(device, width, height, color_format, levels, data, flags);
+        texture = new gs_texture(device, width, height, color_format, levels, data, flags, GS_TEXTURE_2D);
     } catch (const char *error) {
         blog(LOG_ERROR, "device_texture_create (Metal): %s", error);
     }
@@ -124,15 +124,17 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     return texture;
 }
 
-gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags)
+gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type type)
+: device(device),
+width(width),
+height(height),
+color_format(color_format),
+levels(levels),
+data(data),
+flags(flags),
+type(type)
 {
-    this->device = device;
-    this->width = width;
-    this->height = height;
-    this->color_format = color_format;
-    this->levels = levels;
-    this->data = data;
-    this->flags = flags;
+    // UNUSED
 }
 
 gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
@@ -214,7 +216,7 @@ gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 
 enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
 {
-    
+    return texture->type;
 }
 
 void device_load_vertexbuffer(gs_device_t *device,

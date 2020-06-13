@@ -25,6 +25,7 @@ struct gs_texture {
     uint32_t levels;
     const uint8_t **data;
     uint32_t flags;
+    gs_texture_type type;
     
-    gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags);
+    gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type type);
 };
