@@ -4,9 +4,15 @@
 /** Start gs_swap_chain functions
  */
 
-gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data) {
+gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
+ : gs_object(device, GS_SWAP_CHAIN),
+view(data->window.view)
+{
     layer = [CAMetalLayer layer];
     layer.device = device->device;
+    layer.drawableSize = CGSizeMake(data->cx, data->cy);
+    view.wantsLayer = true;
+    view.layer = layer;
 }
 
 /** Start device functions
@@ -56,18 +62,34 @@ void device_leave_context(gs_device_t *device)
 
 void *device_get_device_obj(gs_device_t *device)
 {
-    return NULL;
+    assert(device != NULL);
+    return device->device;
+}
+
+bool device_enum_adapters(
+       bool (*callback)(void *param, const char *name, uint32_t id),
+       void *param)
+{
+   uint32_t i = 0;
+   NSArray *devices = MTLCopyAllDevices();
+   if (devices == nil)
+       return;
+
+   for (id<MTLDevice> device in devices) {
+       if (!callback(param, [[device name] UTF8String], i++))
+           break;
+   }
 }
 
 gs_swapchain_t *device_swapchain_create(gs_device_t *device,
                                         const struct gs_init_data *data)
 {
-    return NULL;
+    device->current_swap_chain = new gs_swap_chain(device, data);
 }
 
 void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
 {
-    if (!(device->swapChain)) {
+    if (!(device->current_swap_chain)) {
         blog(LOG_ERROR, "device_resize (Metal): No swap chain");
         return;
     }
@@ -76,8 +98,8 @@ void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
 void device_get_size(const gs_device_t *device, uint32_t *x,
                      uint32_t *y)
 {
-    if (device->swapChain) {
-        CGSize size = device->swapChain->layer.drawableSize;
+    if (device->current_swap_chain) {
+        CGSize size = device->current_swap_chain->layer.drawableSize;
         *x = size.width;
         *y = size.height;
     } else {
@@ -89,8 +111,8 @@ void device_get_size(const gs_device_t *device, uint32_t *x,
 
 uint32_t device_get_width(const gs_device_t *device)
 {
-    if (device->swapChain) {
-        CGSize size = device->swapChain->layer.drawableSize;
+    if (device->current_swap_chain) {
+        CGSize size = device->current_swap_chain->layer.drawableSize;
         return size.width;
     } else {
         blog(LOG_WARNING, "device_get_width (Metal): No swap chain");
@@ -100,8 +122,8 @@ uint32_t device_get_width(const gs_device_t *device)
 
 uint32_t device_get_height(const gs_device_t *device)
 {
-    if (device->swapChain) {
-        CGSize size = device->swapChain->layer.drawableSize;
+    if (device->current_swap_chain) {
+        CGSize size = device->current_swap_chain->layer.drawableSize;
         return size.height;
     } else {
         blog(LOG_WARNING, "device_get_height (Metal): No swap chain");
@@ -124,17 +146,24 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     return texture;
 }
 
-gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type type)
+gs_object::gs_object(gs_device_t *device, gs_object_type obj_type)
 : device(device),
+obj_type(obj_type)
+{
+    
+}
+
+gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type)
+: gs_object(device, GS_TEXTURE),
 width(width),
 height(height),
 color_format(color_format),
 levels(levels),
 data(data),
 flags(flags),
-type(type)
+texture_type(texture_type)
 {
-    // UNUSED
+    // TODO
 }
 
 gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
@@ -178,7 +207,16 @@ const char *shader,
 const char *file,
 char **error_string)
 {
+    gs_shader *vertex_shader;
     
+    try {
+        vertex_shader = new gs_shader(device, shader, file, GS_SHADER_VERTEX);
+    } catch (char *error) {
+        blog(LOG_ERROR, "device_vertexshader_create (Metal): %s", error);
+        *error_string = error;
+    }
+
+    return vertex_shader;
 }
 
 gs_shader_t *device_pixelshader_create(gs_device_t *device,
@@ -186,14 +224,47 @@ const char *shader,
 const char *file,
 char **error_string)
 {
+    gs_shader *pixel_shader;
     
+    try {
+        pixel_shader = new gs_shader(device, shader, file, GS_SHADER_PIXEL);
+    } catch (char *error) {
+        blog(LOG_ERROR, "device_pixelshader_create (Metal): %s", error);
+        *error_string = error;
+    }
+
+    return pixel_shader;
 }
 
-gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device,
-struct gs_vb_data *data,
-uint32_t flags)
+gs_shader::gs_shader(gs_device_t *device, const char *shader, const char *file, gs_shader_type shader_type)
+: gs_object(device, GS_SHADER),
+shader(shader),
+file(file),
+shader_type(shader_type)
 {
-    
+    // TODO
+}
+
+gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device, struct gs_vb_data *data, uint32_t flags)
+{
+    gs_vertex_buffer *buffer;
+    try {
+         buffer = new gs_vertex_buffer(device, data, flags);
+
+    } catch (const char *error) {
+         blog(LOG_ERROR, "device_vertexbuffer_create (Metal): %s",
+                 error);
+    }
+
+      return buffer;
+}
+
+gs_vertex_buffer::gs_vertex_buffer(gs_device_t *device, struct gs_vb_data *data, uint32_t flags)
+: gs_object(device, GS_VERTEX_BUFFER),
+    data(data),
+    flags(flags)
+{
+    // TODO
 }
 
 gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
@@ -216,37 +287,52 @@ gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 
 enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
 {
-    return texture->type;
+    assert(texture->obj_type == GS_TEXTURE);
+    return texture->texture_type;
 }
 
 void device_load_vertexbuffer(gs_device_t *device,
 gs_vertbuffer_t *vertbuffer)
 {
-    
+    assert(device != NULL);
+    if (device->current_vertex_buffer != vertbuffer)
+        device->current_vertex_buffer = vertbuffer;
 }
 
 void device_load_indexbuffer(gs_device_t *device,
 gs_indexbuffer_t *indexbuffer)
 {
-    
+    assert(device != NULL);
+    if (device->current_index_buffer != indexbuffer)
+        device->current_index_buffer = indexbuffer;
 }
 
 void device_load_texture(gs_device_t *device, gs_texture_t *tex,
 int unit)
 {
-    
+    assert(device != NULL);
+    assert(unit >= 0);
+    assert(unit < GS_MAX_TEXTURES);
+    if (device->current_textures[unit] != tex)
+    device->current_textures[unit] = tex;
 }
 
 void device_load_samplerstate(gs_device_t *device,
 gs_samplerstate_t *samplerstate, int unit)
 {
-    
+    assert(device != NULL);
+    assert(unit >= 0);
+    assert(unit < GS_MAX_TEXTURES);
+    if (device->current_samplers[unit] != samplerstate)
+    device->current_samplers[unit] = samplerstate;
 }
 
 void device_load_vertexshader(gs_device_t *device,
 gs_shader_t *vertshader)
 {
-    
+    assert(device != NULL);
+    if (device->current_vertex_shader != vertshader)
+        device->current_vertex_shader = vertshader;
 }
 
 void device_load_pixelshader(gs_device_t *device,
@@ -485,34 +571,36 @@ void gs_texture_destroy(gs_texture_t *tex)
 
 uint32_t gs_texture_get_width(const gs_texture_t *tex)
 {
-    const gs_texture *text = static_cast<const gs_texture*>(tex);
-    return text->height;
+    assert(tex->obj_type == GS_TEXTURE);
+    return tex->width;
 }
 
 uint32_t gs_texture_get_height(const gs_texture_t *tex)
 {
-    const gs_texture *text = static_cast<const gs_texture*>(tex);
-    return text->height;
+    assert(tex->obj_type == GS_TEXTURE);
+    return tex->height;
 }
 
 enum gs_color_format gs_texture_get_color_format(const gs_texture_t *tex)
 {
-    const gs_texture *text = static_cast<const gs_texture*>(tex);
-    return text->color_format;
+    assert(tex->obj_type == GS_TEXTURE);
+    return tex->color_format;
 }
 
 bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr,
 uint32_t *linesize)
 {
-    gs_texture *text = static_cast<gs_texture*>(tex);
-    *linesize = text->width * gs_get_format_bpp(text->color_format) / 8;
-    *ptr = (uint8_t*)malloc(sizeof(uint8_t) * text->height * *linesize);
+    assert(tex->obj_type == GS_TEXTURE);
+    assert(tex->texture_type == GS_TEXTURE_2D);
+    *linesize = tex->width * gs_get_format_bpp(tex->color_format) / 8;
+    *ptr = (uint8_t*)malloc(sizeof(uint8_t) * tex->height * *linesize);
     return true;
 }
 
 void gs_texture_unmap(gs_texture_t *tex)
 {
-    
+    assert(tex->obj_type == GS_TEXTURE);
+    assert(tex->texture_type == GS_TEXTURE_2D);
 }
 
 void *gs_texture_get_obj(gs_texture_t *tex)
@@ -620,10 +708,10 @@ const struct gs_vb_data *data)
     
 }
 
-struct gs_vb_data *
-gs_vertexbuffer_get_data(const gs_vertbuffer_t *vertbuffer)
+struct gs_vb_data *gs_vertexbuffer_get_data(const gs_vertbuffer_t *vertbuffer)
 {
-    
+    assert(vertbuffer->obj_type == GS_VERTEX_BUFFER);
+    return vertbuffer->data;
 }
 
 void gs_indexbuffer_destroy(gs_indexbuffer_t *indexbuffer)
