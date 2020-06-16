@@ -7,9 +7,9 @@ gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
  : gs_object(device, GS_SWAP_CHAIN),
 view(data->window.view)
 {
-    layer = [CAMetalLayer layer];
-    layer.device = device->device;
-    layer.drawableSize = CGSizeMake(data->cx, data->cy);
+    metalLayer = [CAMetalLayer layer];
+    metalLayer.device = device->metalDevice;
+    metalLayer.drawableSize = CGSizeMake(data->cx, data->cy);
     view.wantsLayer = true;
-    view.layer = layer;
+    view.layer = metalLayer;
 }
