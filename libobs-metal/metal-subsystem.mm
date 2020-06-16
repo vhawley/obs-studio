@@ -1,30 +1,20 @@
-#include "metal-device.hpp"
 #include "metal-subsystem.hpp"
 
-/** Start gs_swap_chain functions
- */
-
-gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
- : gs_object(device, GS_SWAP_CHAIN),
-view(data->window.view)
-{
-    layer = [CAMetalLayer layer];
-    layer.device = device->device;
-    layer.drawableSize = CGSizeMake(data->cx, data->cy);
-    view.wantsLayer = true;
-    view.layer = layer;
+gs_device::gs_device(uint32_t adapter) {
+    NSArray *metalDevices = MTLCopyAllDevices();
+    
+    device_index = adapter;
+    
+    NSUInteger numDevices = [metalDevices count];
+    if (!metalDevices || numDevices < 1 || adapter > numDevices - 1) {
+        throw "Failed to get Metal devices";
+    }
+    
+    device = [metalDevices objectAtIndex:device_index];
+    render_pass_descriptor = [[MTLRenderPassDescriptor alloc] init];
+    render_pipeline_descriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    command_queue = [device newCommandQueue];
 }
-
-
-gs_sampler_state::gs_sampler_state(gs_device_t *device, const gs_sampler_info *info)
-: gs_object(device, GS_SAMPLER_STATE),
-info(*info)
-{
-    // Create metal sampler descriptor
-}
-
-/** Start device functions
-*/
 
 const char *device_get_name(void) {
     return "Metal";
@@ -154,21 +144,6 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     return texture;
 }
 
-
-
-gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type)
-: gs_object(device, GS_TEXTURE),
-width(width),
-height(height),
-color_format(color_format),
-levels(levels),
-data(data),
-flags(flags),
-texture_type(texture_type)
-{
-    // TODO
-}
-
 gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
               enum gs_color_format color_format, uint32_t levels,
                           const uint8_t **data, uint32_t flags)
@@ -185,15 +160,20 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
 }
 
 gs_zstencil_t *device_zstencil_create(gs_device_t *device,
-uint32_t width, uint32_t height,
-                                      enum gs_zstencil_format format)
+uint32_t width, uint32_t height, enum gs_zstencil_format format)
 {
-    
+    gs_zstencil_buffer *buffer;
+    try {
+         buffer = new gs_zstencil_buffer(device, width, height, format);
+    } catch (const char *error) {
+         blog(LOG_ERROR, "device_zstencil_create (Metal): %s", error);
+    }
+
+    return buffer;
 }
 
 gs_stagesurf_t *
-device_stagesurface_create(gs_device_t *device, uint32_t width, uint32_t height,
-                           enum gs_color_format color_format)
+device_stagesurface_create(gs_device_t *device, uint32_t width, uint32_t height, enum gs_color_format color_format)
 {
     
 }
@@ -239,21 +219,11 @@ char **error_string)
     return pixel_shader;
 }
 
-gs_shader::gs_shader(gs_device_t *device, const char *shader, const char *file, gs_shader_type shader_type)
-: gs_object(device, GS_SHADER),
-shader(shader),
-file(file),
-shader_type(shader_type)
-{
-    // TODO
-}
-
 gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device, struct gs_vb_data *data, uint32_t flags)
 {
     gs_vertex_buffer *buffer;
     try {
          buffer = new gs_vertex_buffer(device, data, flags);
-
     } catch (const char *error) {
          blog(LOG_ERROR, "device_vertexbuffer_create (Metal): %s",
                  error);
@@ -262,30 +232,32 @@ gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device, struct gs_vb_da
       return buffer;
 }
 
-gs_vertex_buffer::gs_vertex_buffer(gs_device_t *device, struct gs_vb_data *data, uint32_t flags)
-: gs_object(device, GS_VERTEX_BUFFER),
-    data(data),
-    flags(flags)
-{
-    // TODO
-}
-
 gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
 enum gs_index_type type,
 void *indices, size_t num,
 uint32_t flags)
 {
-    
+    gs_index_buffer *buffer;
+    try {
+         buffer = new gs_index_buffer(device, type, indices, num, flags);
+    } catch (const char *error) {
+         blog(LOG_ERROR, "device_indexbuffer_create (Metal): %s",
+                 error);
+    }
+
+    return buffer;
 }
 
 gs_timer_t *device_timer_create(gs_device_t *device)
 {
-    
+    UNUSED_PARAMETER(device);
+    return NULL;
 }
 
 gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 {
-    
+    UNUSED_PARAMETER(device);
+    return NULL;
 }
 
 enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
@@ -344,20 +316,22 @@ gs_shader_t *pixelshader)
     
 }
 
-void device_load_default_samplerstate(gs_device_t *device, bool b_3d,
-                                      int unit)
+void device_load_default_samplerstate(gs_device_t *device, bool b_3d, int unit)
 {
-    
+    /* TODO */
+    UNUSED_PARAMETER(device);
+    UNUSED_PARAMETER(b_3d);
+    UNUSED_PARAMETER(unit);
 }
 
 gs_shader_t *device_get_vertex_shader(const gs_device_t *device)
 {
-    
+    return device->current_vertex_shader;
 }
 
 gs_shader_t *device_get_pixel_shader(const gs_device_t *device)
 {
-    
+    return device->current_pixel_shader;
 }
 
 gs_texture_t *device_get_render_target(const gs_device_t *device)
@@ -367,7 +341,6 @@ gs_texture_t *device_get_render_target(const gs_device_t *device)
 
 gs_zstencil_t *device_get_zstencil_target(const gs_device_t *device)
 {
-    
 }
 
 void device_set_render_target(gs_device_t *device, gs_texture_t *tex,

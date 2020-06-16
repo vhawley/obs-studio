@@ -1,7 +1,17 @@
 #include "metal-subsystem.hpp"
+#include "metal-shaderprocessor.hpp"
 
 /** Start gs_shader functions
 */
+
+gs_shader::gs_shader(gs_device_t *device, const char *shader, const char *file, gs_shader_type shader_type)
+: gs_object(device, GS_SHADER),
+shader(shader),
+file(file),
+shader_type(shader_type)
+{
+    // Compile Metal shader
+}
 
 void gs_shader_destroy(gs_shader_t *shader)
 {
