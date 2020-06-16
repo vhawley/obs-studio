@@ -15,6 +15,14 @@ view(data->window.view)
     view.layer = layer;
 }
 
+
+gs_sampler_state::gs_sampler_state(gs_device_t *device, const gs_sampler_info *info)
+: gs_object(device, GS_SAMPLER_STATE),
+info(*info)
+{
+    // Create metal sampler descriptor
+}
+
 /** Start device functions
 */
 
@@ -146,12 +154,7 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     return texture;
 }
 
-gs_object::gs_object(gs_device_t *device, gs_object_type obj_type)
-: device(device),
-obj_type(obj_type)
-{
-    
-}
+
 
 gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type)
 : gs_object(device, GS_TEXTURE),

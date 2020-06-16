@@ -2,8 +2,15 @@
 
 #include <graphics/graphics.h>
 #include <graphics/device-exports.h>
+#include <graphics/shader-parser.h>
+
 #include <iostream>
 #include <vector>
+
+#include <util/base.h>
+#include <graphics/matrix4.h>
+#include <graphics/graphics.h>
+#include <graphics/device-exports.h>
 
 #include <Metal/Metal.h>
 #include <MetalKit/MetalKit.h>
@@ -24,7 +31,9 @@ struct gs_object {
     gs_device_t *device;
     gs_object_type obj_type;
     
-    gs_object(gs_device_t *device, gs_object_type obj_type);
+    inline gs_object(gs_device_t *device, gs_object_type obj_type)
+    : device(device),
+    obj_type(obj_type) { }
 };
 
 struct gs_swap_chain : gs_object {
@@ -32,6 +41,49 @@ struct gs_swap_chain : gs_object {
     CAMetalLayer *layer;
     
     gs_swap_chain(gs_device *device, const gs_init_data *data);
+};
+
+struct gs_sampler_state : gs_object {
+    const gs_sampler_info info;
+
+    MTLSamplerDescriptor  *samplerDesc;
+    id<MTLSamplerState>   samplerState;
+
+    void InitSampler();
+
+    inline void Release() {samplerState = nil;}
+    inline void Rebuild() {InitSampler();}
+
+    gs_sampler_state(gs_device_t *device, const gs_sampler_info *info);
+};
+
+struct ShaderSampler {
+    std::string      name;
+    gs_sampler_state sampler;
+
+    inline ShaderSampler(const char *name, gs_device_t *device,
+            gs_sampler_info *info)
+        : name    (name),
+          sampler (device, info)
+    {
+    }
+};
+
+struct gs_shader_param {
+   const std::string          name;
+   const gs_shader_param_type type;
+   const int                  arrayCount;
+
+   struct gs_sampler_state    *nextSampler = nullptr;
+
+   uint32_t                   textureID;
+   size_t                     pos;
+
+   std::vector<uint8_t>       curValue;
+   std::vector<uint8_t>       defaultValue;
+   bool                       changed;
+
+   gs_shader_param(shader_var &var, uint32_t &texCounter);
 };
 
 struct gs_texture : gs_object {

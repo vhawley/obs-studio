@@ -22,11 +22,14 @@ add_definitions(-DLIBOBS_EXPORTS)
 set(libobs-metal_SOURCES
 	metal-subsystem.mm
 	metal-shader.mm
-	metal-device.mm)
+	metal-device.mm
+    metal-shaderprocessor.mm
+    metal-shaderbuilder.cpp)
 
 set(libobs-metal_HEADERS
 	metal-subsystem.hpp
-	metal-device.hpp)
+	metal-device.hpp
+    metal-shaderprocessor.hpp)
 
 add_library(libobs-metal SHARED
 	${libobs-metal_SOURCES}
