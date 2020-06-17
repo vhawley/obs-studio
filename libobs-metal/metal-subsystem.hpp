@@ -31,8 +31,13 @@ struct gs_device {
     gs_shader *currentVertexShader;
     gs_shader *currentPixelShader;
     
+    // Might be movable to swapchain?
     MTLRenderPassDescriptor *renderPassDescriptor;
     MTLRenderPipelineDescriptor *renderPipelineDescriptor;
+    gs_texture *currentRenderTarget;
+    int currentRenderSide;
+    gs_zstencil_buffer *currentZStencilBuffer;
+    bool pipelineStateChanged;
     
     gs_device(uint32_t adapterIdx);
 };
@@ -58,8 +63,14 @@ struct gs_object {
 };
 
 struct gs_swap_chain : gs_object {
+    const gs_init_data *initData;
+    
     NSView *view;
     CAMetalLayer *metalLayer;
+    gs_texture *nextTarget;
+    
+    gs_texture *CurrentTarget();
+    gs_texture *NextTarget();
     
     gs_swap_chain(gs_device *device, const gs_init_data *data);
 };
@@ -140,7 +151,11 @@ struct gs_texture : gs_object {
     void InitTexture();
     void RebuildTexture();
     
+    // Init from data
     gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type);
+    
+    // Init from existing MTLTexture
+    gs_texture(gs_device_t *device, id<MTLTexture> texture);
 };
 
 struct gs_vertex_buffer : gs_object {

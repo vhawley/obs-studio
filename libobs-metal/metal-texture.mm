@@ -1,5 +1,6 @@
 #include "metal-subsystem.hpp"
 
+// Init from data
 gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format colorFormat, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type textureType)
 : gs_object(device, GS_TEXTURE),
 width(width),
@@ -23,6 +24,20 @@ metalPixelFormat(ConvertGSTextureFormat(colorFormat))
         if (genMipmaps)
             GenerateMipmap();
     }
+}
+
+// Init from MTLTexture
+gs_texture::gs_texture(gs_device_t *device, id<MTLTexture> texture)
+: gs_object(device, GS_TEXTURE),
+width(texture.width),
+height(texture.height),
+isRenderTarget(false),
+isDynamic(false),
+isShared(true),
+genMipmaps(false),
+metalTexture (texture),
+metalPixelFormat(texture.pixelFormat)
+{
 }
 
 void gs_texture::InitTextureDescriptor() {
