@@ -4,7 +4,7 @@ gs_zstencil_buffer::gs_zstencil_buffer(gs_device_t *device, uint32_t width, uint
 : gs_object(device, GS_ZSTENCIL_BUFFER),
 width(width),
 height(height),
-zstencil_format(format)
+zStencilFormat(format)
 {
     // Create MTLBuffer
 }

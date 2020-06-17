@@ -86,14 +86,14 @@ bool device_enum_adapters(
 gs_swapchain_t *device_swapchain_create(gs_device_t *device,
                                         const struct gs_init_data *data)
 {
-     gs_swap_chain *swap_chain;
-     try {
-         swap_chain = new gs_swap_chain(device, data);
-     } catch (const char *error) {
-         blog(LOG_ERROR, "device_swapchain_create (Metal): %s", error);
-     }
-     
-     return swap_chain;
+    gs_swap_chain *swap_chain;
+    try {
+        swap_chain = new gs_swap_chain(device, data);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_swapchain_create (Metal): %s", error);
+    }
+    
+    return swap_chain;
 }
 
 void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
@@ -159,7 +159,15 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
                                         enum gs_color_format color_format, uint32_t levels,
                                         const uint8_t **data, uint32_t flags)
 {
+    gs_texture *texture;
     
+    try {
+        texture = new gs_texture(device, size, size, color_format, levels, data, flags, GS_TEXTURE_CUBE);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_cubetexture_create (Metal): %s", error);
+    }
+    
+    return texture;
 }
 
 gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint32_t height,
@@ -167,7 +175,15 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
                                        uint32_t levels, const uint8_t *const *data,
                                        uint32_t flags)
 {
+    gs_texture *texture;
     
+    try {
+        texture = new gs_texture(device, width, height, color_format, levels, (const uint8_t **)data, flags, GS_TEXTURE_3D);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_voltexture_create (Metal): %s", error);
+    }
+    
+    return texture;
 }
 
 gs_zstencil_t *device_zstencil_create(gs_device_t *device,
@@ -186,14 +202,29 @@ gs_zstencil_t *device_zstencil_create(gs_device_t *device,
 gs_stagesurf_t *
 device_stagesurface_create(gs_device_t *device, uint32_t width, uint32_t height, enum gs_color_format color_format)
 {
+    gs_stage_surface *stagesurf;
     
+    try {
+        stagesurf = new gs_stage_surface(device, width, height, color_format);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_stagesurface_create (Metal): %s", error);
+    }
+    
+    return stagesurf;
 }
 
 gs_samplerstate_t *
-device_samplerstate_create(gs_device_t *device,
-                           const struct gs_sampler_info *info)
+device_samplerstate_create(gs_device_t *device, const struct gs_sampler_info *info)
 {
+    gs_sampler_state *sampler_state;
     
+    try {
+        sampler_state = new gs_sampler_state(device, info);
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_samplerstate_create (Metal): %s", error);
+    }
+    
+    return sampler_state;
 }
 
 gs_shader_t *device_vertexshader_create(gs_device_t *device,
@@ -201,10 +232,10 @@ gs_shader_t *device_vertexshader_create(gs_device_t *device,
                                         const char *file,
                                         char **error_string)
 {
-    gs_shader *vertex_shader;
+    gs_vertex_shader *vertex_shader;
     
     try {
-        vertex_shader = new gs_shader(device, shader, file, GS_SHADER_VERTEX);
+        vertex_shader = new gs_vertex_shader(device, shader, file);
     } catch (char *error) {
         blog(LOG_ERROR, "device_vertexshader_create (Metal): %s", error);
         *error_string = error;
@@ -218,10 +249,10 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device,
                                        const char *file,
                                        char **error_string)
 {
-    gs_shader *pixel_shader;
+    gs_pixel_shader *pixel_shader;
     
     try {
-        pixel_shader = new gs_shader(device, shader, file, GS_SHADER_PIXEL);
+        pixel_shader = new gs_pixel_shader(device, shader, file);
     } catch (char *error) {
         blog(LOG_ERROR, "device_pixelshader_create (Metal): %s", error);
         *error_string = error;
@@ -236,8 +267,7 @@ gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device, struct gs_vb_da
     try {
         buffer = new gs_vertex_buffer(device, data, flags);
     } catch (const char *error) {
-        blog(LOG_ERROR, "device_vertexbuffer_create (Metal): %s",
-             error);
+        blog(LOG_ERROR, "device_vertexbuffer_create (Metal): %s", error);
     }
     
     return buffer;
@@ -306,7 +336,7 @@ void device_load_texture(gs_device_t *device, gs_texture_t *tex,
 void device_load_samplerstate(gs_device_t *device,
                               gs_samplerstate_t *samplerstate, int unit)
 {
-    assert(device != NULL);
+    assert(device != nil);
     assert(unit >= 0);
     assert(unit < GS_MAX_TEXTURES);
     if (device->currentSamplers[unit] != samplerstate)
@@ -316,15 +346,45 @@ void device_load_samplerstate(gs_device_t *device,
 void device_load_vertexshader(gs_device_t *device,
                               gs_shader_t *vertshader)
 {
-    assert(device != NULL);
-    if (device->currentVertexShader != vertshader)
-        device->currentVertexShader = vertshader;
+    assert(device != nil);
+    assert(vertshader->objectType == GS_SHADER);
+    assert(vertshader->shaderType == GS_SHADER_VERTEX);
+    
+    gs_vertex_shader *vs = static_cast<gs_vertex_shader *>(vertshader);
+    if (device->currentVertexShader != vs)
+        device->currentVertexShader = vs;
 }
 
 void device_load_pixelshader(gs_device_t *device,
                              gs_shader_t *pixelshader)
 {
+    assert(device != nil);
+    assert(pixelshader->objectType == GS_SHADER);
+    assert(pixelshader->shaderType == GS_SHADER_PIXEL);
     
+    gs_pixel_shader *ps = (gs_pixel_shader *)pixelshader;
+    
+    if (device->currentPixelShader == ps)
+        return;
+    
+    id<MTLFunction> function = nil;
+    gs_sampler_state *states[GS_MAX_TEXTURES];
+    
+    if (pixelshader) {
+        function = ps->metalFunction;
+        ps->GetPixelShaderSamplerStates(states);
+    }
+    
+    // Clear textures. may not be needed?
+    memset(device->currentTextures, 0, sizeof(device->currentTextures));
+    
+    device->currentPixelShader = ps;
+    for (size_t i = 0; i < GS_MAX_TEXTURES; i++)
+        device->currentSamplers[i] = states[i];
+    
+    [device->renderPipelineDescriptor setFragmentFunction:function];
+    
+    device->pipelineStateChanged = true;
 }
 
 void device_load_default_samplerstate(gs_device_t *device, bool b_3d, int unit)
@@ -571,8 +631,8 @@ void gs_swapchain_destroy(gs_swapchain_t *swapchain)
     assert(swapchain->objectType == GS_SWAP_CHAIN);
     
     if (swapchain == swapchain->device->currentSwapChain)
-         device_load_swapchain(swapchain->device, nullptr);
-
+        device_load_swapchain(swapchain->device, nullptr);
+    
     delete swapchain;
 }
 

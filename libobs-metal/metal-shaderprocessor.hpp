@@ -4,10 +4,12 @@
 
 #include <graphics/shader-parser.h>
 
+using namespace std;
+
 struct ShaderBufferInfo {
-	bool     normals  = false;
-	bool     colors   = false;
-	bool     tangents = false;
+	bool normals  = false;
+	bool colors   = false;
+	bool tangents = false;
 	uint32_t texUnits = 0;
 };
 
@@ -23,8 +25,8 @@ struct ShaderProcessor {
 
 	void BuildVertexDesc(MTLVertexDescriptor *vertexDesc);
 	void BuildParamInfo(ShaderBufferInfo &info);
-	void BuildParams(std::vector<gs_shader_param> &params);
-	void BuildSamplers(std::vector<std::unique_ptr<ShaderSampler>> &samplers);
+	void BuildParams(vector<gs_shader_param> &params);
+	void BuildSamplers(vector<ShaderSampler*> &samplers);
 	std::string BuildString(gs_shader_type type);
 	void Process(const char *shader_string, const char *file);
 

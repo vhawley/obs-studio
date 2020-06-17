@@ -9,38 +9,13 @@
 
 #include <util/base.h>
 #include <graphics/matrix4.h>
+#include <graphics/vec2.h>
 
 #import <AppKit/NSView.h>
 #import <QuartzCore/CoreAnimation.h>
 #import <Metal/Metal.h>
 
 using namespace std;
-
-struct gs_device {
-    id<MTLDevice> metalDevice;
-    id<MTLRenderPipelineState> renderPipelineState;
-    id<MTLCommandQueue> commandQueue;
-    id<MTLCommandBuffer> commandBuffer;
-    
-    uint32_t deviceIndex;
-    gs_swap_chain *currentSwapChain;
-    gs_vertex_buffer *currentVertexBuffer;
-    gs_index_buffer *currentIndexBuffer;
-    gs_texture *currentTextures[GS_MAX_TEXTURES];
-    gs_sampler_state *currentSamplers[GS_MAX_TEXTURES];
-    gs_shader *currentVertexShader;
-    gs_shader *currentPixelShader;
-    
-    // Might be movable to swapchain?
-    MTLRenderPassDescriptor *renderPassDescriptor;
-    MTLRenderPipelineDescriptor *renderPipelineDescriptor;
-    gs_texture *currentRenderTarget;
-    int currentRenderSide;
-    gs_zstencil_buffer *currentZStencilBuffer;
-    bool pipelineStateChanged;
-    
-    gs_device(uint32_t adapterIdx);
-};
 
 enum gs_object_type {
     GS_VERTEX_BUFFER,
@@ -63,7 +38,7 @@ struct gs_object {
 };
 
 struct gs_swap_chain : gs_object {
-    const gs_init_data *initData;
+    gs_init_data *initData;
     
     NSView *view;
     CAMetalLayer *metalLayer;
@@ -71,6 +46,9 @@ struct gs_swap_chain : gs_object {
     
     gs_texture *CurrentTarget();
     gs_texture *NextTarget();
+    
+    void Resize(uint32_t cx, uint32_t cy);
+    void Rebuild();
     
     gs_swap_chain(gs_device *device, const gs_init_data *data);
 };
@@ -177,7 +155,7 @@ struct gs_index_buffer : gs_object {
 struct gs_zstencil_buffer : gs_object {
     uint32_t width;
     uint32_t height;
-    gs_zstencil_format zstencil_format;
+    gs_zstencil_format zStencilFormat;
     
     gs_zstencil_buffer(gs_device_t *device, uint32_t width, uint32_t height, gs_zstencil_format format);
 };
@@ -185,7 +163,7 @@ struct gs_zstencil_buffer : gs_object {
 struct gs_stage_surface : gs_object {
     uint32_t width;
     uint32_t height;
-    gs_color_format color_format;
+    gs_color_format colorFormat;
     
     gs_stage_surface(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format);
 };
@@ -193,11 +171,94 @@ struct gs_stage_surface : gs_object {
 struct gs_shader : gs_object {
     const char *shader;
     const char *file;
-    gs_shader_type shader_type;
+    gs_shader_type shaderType;
+    
+    string shaderString;
+    id<MTLLibrary> metalLibrary;
+    id<MTLFunction> metalFunction;
+    vector<gs_shader_param> params;
+    size_t constantSize = 0;
+    vector<uint8_t> data;
+    
+    void BuildConstantBuffer();
+    void Compile();
     
     gs_shader(gs_device_t *device, const char *shader, const char *file, gs_shader_type shader_type);
 };
 
+struct gs_pixel_shader : gs_shader {
+    vector<ShaderSampler*> samplers;
+    
+    inline void GetPixelShaderSamplerStates(gs_sampler_state **states)
+    {
+        size_t i;
+        for (i = 0; i < samplers.size(); i++)
+            states[i] = &samplers[i]->sampler;
+        for (; i < GS_MAX_TEXTURES; i++)
+            states[i] = nullptr;
+    }
+    
+    gs_pixel_shader(gs_device_t *device, const char *shader, const char *file);
+};
+
+struct gs_vertex_shader : gs_shader {
+   MTLVertexDescriptor *vertexDescriptor;
+
+   bool hasNormals;
+   bool hasColors;
+   bool hasTangents;
+   uint32_t texUnits;
+
+    gs_shader_param *world;
+    gs_shader_param *viewProjection;
+
+   inline uint32_t NumBuffersExpected() const
+   {
+       uint32_t count = texUnits + 1;
+       if (hasNormals) count++;
+       if (hasColors) count++;
+       if (hasTangents) count++;
+
+       return count;
+   }
+
+   gs_vertex_shader(gs_device_t *device, const char *shader, const char *file);
+};
+
+struct ShaderError {
+   const string error;
+
+   inline ShaderError(NSError *error)
+       : error ([[error localizedDescription] UTF8String])
+   {
+   }
+};
+
+struct gs_device {
+    id<MTLDevice> metalDevice;
+    id<MTLRenderPipelineState> renderPipelineState;
+    id<MTLCommandQueue> commandQueue;
+    id<MTLCommandBuffer> commandBuffer;
+    
+    uint32_t deviceIndex;
+    gs_swap_chain *currentSwapChain;
+    gs_vertex_buffer *currentVertexBuffer;
+    gs_index_buffer *currentIndexBuffer;
+    gs_texture *currentTextures[GS_MAX_TEXTURES];
+    gs_sampler_state *currentSamplers[GS_MAX_TEXTURES];
+    gs_vertex_shader *currentVertexShader;
+    gs_pixel_shader *currentPixelShader;
+    
+    // Might be movable to swapchain?
+    MTLRenderPassDescriptor *renderPassDescriptor;
+    MTLRenderPipelineDescriptor *renderPipelineDescriptor;
+    gs_texture *currentRenderTarget;
+    int currentRenderSide;
+    gs_zstencil_buffer *currentZStencilBuffer;
+    bool pipelineStateChanged;
+    
+    gs_device(uint32_t adapterIdx);
+};
 
 // Helpers
 static inline MTLPixelFormat ConvertGSTextureFormat(gs_color_format format)
