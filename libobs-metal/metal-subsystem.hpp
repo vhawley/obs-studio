@@ -173,7 +173,7 @@ struct gs_shader : gs_object {
     const char *file;
     gs_shader_type shaderType;
     
-    string shaderString;
+    string metalShader;
     id<MTLLibrary> metalLibrary;
     id<MTLFunction> metalFunction;
     vector<gs_shader_param> params;

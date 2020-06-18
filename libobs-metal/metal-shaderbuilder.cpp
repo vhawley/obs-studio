@@ -69,6 +69,7 @@ private:
 	bool WriteTextureCall(struct cf_token *&token,
 			ShaderTextureCallType type);
 	bool WriteTextureCode(struct cf_token *&token, struct shader_var *var);
+    bool WriteTextureLoad();
 	bool WriteIntrinsic(struct cf_token *&token);
 	void WriteFunctionAdditionalParam(string funcionName);
 	void WriteFunctionContent(struct cf_token *&token, const char *end);
@@ -449,6 +450,74 @@ inline bool ShaderBuilder::WriteConstantVariable(struct cf_token *token)
 	return false;
 }
 
+inline bool ShaderBuilder::WriteTextureLoad() {
+    struct cf_parser *cfp = &parser->cfp;
+    
+    output << "read(";
+    
+    if (!cf_next_token(cfp))    return false;
+    
+    // function name
+    if (cfp->cur_token->type != CFTOKEN_NAME) return false;
+    
+    // metal "read" can't take uint3
+    if (cf_token_is(cfp, "int3")) {
+        blog(LOG_INFO, "ok...");
+        
+        string funcName = "static_cast<uint2>";
+        output.write(funcName.c_str(), funcName.length());
+        
+        // open parenthesis
+        if (!cf_next_token(cfp))    return false;
+        if (!cf_token_is(cfp, "(")) return false;
+        output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
+        
+        // grab first paramater only
+        int parenCount = 2; //includes ( of read from the start of the fucntion
+        string firstParam = "";
+        
+        if (!cf_next_token(cfp))    return false;
+        while (true) {
+            if (cf_token_is(cfp, "(")) parenCount++;
+            if (cf_token_is(cfp, ")")) {
+                parenCount--;
+                if (parenCount <= 2) { // end of first param
+                    for (int i = 0; i < parenCount; i++) {
+                        output << ")";
+                    }
+                    break;
+                }
+            }
+            if (cf_token_is(cfp, ",") && parenCount == 2) {
+                output << ")";
+                break;
+            }
+            
+            output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
+            if (!cf_next_token(cfp))    return false;
+        }
+        
+        // iterate through rest of token until the end of original function
+        while (parenCount > 0) {
+            if (!cf_next_token(cfp))    return false;
+            
+            if (cf_token_is(cfp, "(")) parenCount++;
+            if (cf_token_is(cfp, ")")) {
+                parenCount--;
+                if (parenCount < 1) output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
+            }
+        }
+    } else {
+        output << "(u";
+        
+        WriteFunctionContent(cfp->cur_token, ")");
+        
+        output << ").xy)";
+    }
+    
+    return true;
+}
+
 inline bool ShaderBuilder::WriteTextureCall(struct cf_token *&token,
 		ShaderTextureCallType type)
 {
@@ -460,7 +529,9 @@ inline bool ShaderBuilder::WriteTextureCall(struct cf_token *&token,
 	if (!cf_token_is(cfp, "(")) return false;
 
 	/* sampler */
-	if (type != ShaderTextureCallType::Load) {
+    if (type == ShaderTextureCallType::Load) {
+        return WriteTextureLoad();
+    } else {
 		output << "sample(";
 
 		if (!cf_next_token(cfp))    return false;
@@ -471,52 +542,47 @@ inline bool ShaderBuilder::WriteTextureCall(struct cf_token *&token,
 		if (!cf_next_token(cfp))    return false;
 		if (!cf_token_is(cfp, ",")) return false;
 		output << ", ";
-	} else
-		output << "read((u";
+        
+        /* location */
+        if (!cf_next_token(cfp))    return false;
+        if (type != ShaderTextureCallType::Sample) {
+            WriteFunctionContent(cfp->cur_token, ",");
 
-	/* location */
-	if (!cf_next_token(cfp))    return false;
-	if (type != ShaderTextureCallType::Sample &&
-	    type != ShaderTextureCallType::Load) {
-		WriteFunctionContent(cfp->cur_token, ",");
+            /* bias, gradient2d, level */
+            switch (type)
+            {
+            case ShaderTextureCallType::SampleBias:
+                output << "bias(";
+                if (!cf_next_token(cfp))    return false;
+                WriteFunctionContent(cfp->cur_token, ")");
+                output << ')';
+                break;
 
-		/* bias, gradient2d, level */
-		switch (type)
-		{
-		case ShaderTextureCallType::SampleBias:
-			output << "bias(";
-			if (!cf_next_token(cfp))    return false;
-			WriteFunctionContent(cfp->cur_token, ")");
-			output << ')';
-			break;
+            case ShaderTextureCallType::SampleGrad:
+                output << "gradient2d(";
+                if (!cf_next_token(cfp))    return false;
+                WriteFunctionContent(cfp->cur_token, ",");
+                if (!cf_next_token(cfp))    return false;
+                WriteFunctionContent(cfp->cur_token, ")");
+                output << ')';
+                break;
 
-		case ShaderTextureCallType::SampleGrad:
-			output << "gradient2d(";
-			if (!cf_next_token(cfp))    return false;
-			WriteFunctionContent(cfp->cur_token, ",");
-			if (!cf_next_token(cfp))    return false;
-			WriteFunctionContent(cfp->cur_token, ")");
-			output << ')';
-			break;
+            case ShaderTextureCallType::SampleLevel:
+                output << "level(";
+                if (!cf_next_token(cfp))    return false;
+                WriteFunctionContent(cfp->cur_token, ")");
+                output << ')';
+                break;
 
-		case ShaderTextureCallType::SampleLevel:
-			output << "level(";
-			if (!cf_next_token(cfp))    return false;
-			WriteFunctionContent(cfp->cur_token, ")");
-			output << ')';
-			break;
-
-		default:
-			break;
-		}
-	} else
-		WriteFunctionContent(cfp->cur_token, ")");
-
-	/* ) */
-	if (type == ShaderTextureCallType::Load)
-		output << ").xy)";
-	else
-		output << ')';
+            default:
+                break;
+            }
+        } else {
+            WriteFunctionContent(cfp->cur_token, ")");
+        }
+        
+        output << ')';
+	}
 
 	return true;
 }

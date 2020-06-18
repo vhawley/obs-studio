@@ -21,7 +21,7 @@ gs_pixel_shader::gs_pixel_shader(gs_device_t *device, const char *shader, const 
     ShaderProcessor processor(device);
     
     processor.Process(shader, file);
-    shaderString = processor.BuildString(shaderType);
+    metalShader = processor.BuildString(shaderType);
     processor.BuildParams(params);
     processor.BuildSamplers(samplers);
     BuildConstantBuffer();
@@ -87,15 +87,15 @@ void gs_shader::Compile()
    }
 
    NSString *nsShaderString = [[NSString alloc]
-           initWithBytesNoCopy:(void*)shaderString.data()
-           length:shaderString.length()
+           initWithBytesNoCopy:(void*)metalShader.data()
+           length:metalShader.length()
            encoding:NSUTF8StringEncoding freeWhenDone:NO];
    NSError *errors;
    id<MTLLibrary> lib = [device->metalDevice newLibraryWithSource:nsShaderString
            options:metalCompileOptions error:&errors];
    if (lib == nil) {
        blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
-               shaderString.c_str());
+               metalShader.c_str());
 
        if (errors != nil)
            throw ShaderError(errors);
