@@ -43,6 +43,7 @@ struct ShaderBuilder
 	set<string>                     constantNames;
 	vector<struct shader_var*>      textureVars;
 	map<string, ShaderFunctionInfo> functionInfo;
+    shader_func               *currentFunc;
 
 	void Build(string &outputString);
 
@@ -56,7 +57,10 @@ struct ShaderBuilder
 	bool isPixelShader() const {return type == GS_SHADER_PIXEL;}
 
 private:
-	struct shader_var *GetVariable(struct cf_token *token);
+    struct shader_var *GetVariable(struct cf_token *token);
+    struct shader_struct *GetStruct(char *name);
+    char *GetStructValueDataType(struct shader_struct *obj, struct cf_token *token);
+    struct shader_var *GetFunctionParam(struct cf_token *token);
 
 	bool IsNextCompareOperator(struct cf_token *&token);
 	void AnalysisFunction(struct cf_token *&token, const char *end,
@@ -72,7 +76,8 @@ private:
     bool WriteTextureLoad();
 	bool WriteIntrinsic(struct cf_token *&token);
 	void WriteFunctionAdditionalParam(string funcionName);
-	void WriteFunctionContent(struct cf_token *&token, const char *end);
+    void WriteFunctionContent(struct cf_token *&token, const char *end);
+    void WriteTypeInitializer(struct cf_token *&token, const char *initializerType);
 	void WriteSamplerParamDelimitter(bool &first);
 	void WriteSamplerFilter(enum gs_sample_filter filter, bool &first);
 	void WriteSamplerAddress(enum gs_address_mode address,
@@ -110,7 +115,23 @@ static inline const char *GetType(const string &type)
 			case 'f': return "float";
 		}
 		throw "Unknown type";
-	} else if (type.compare(0, 10, "min16float") == 0) {
+	} if (type.compare(0, 3, "int") == 0) {
+        switch (*(type.end() - 1)) {
+            case '2': return "int2";
+            case '3': return "int3";
+            case '4': return "int4";
+            case 'f': return "int";
+        }
+        throw "Unknown type";
+    } if (type.compare(0, 5, "float") == 0) {
+        switch (*(type.end() - 1)) {
+            case '2': return "float2";
+            case '3': return "float3";
+            case '4': return "float4";
+            case 't': return "float";
+        }
+        throw "Unknown type";
+    } else if (type.compare(0, 10, "min16float") == 0) {
 		switch (*(type.end() - 1)) {
 			case '2': return "half2";
 			case '3': return "half3";
@@ -142,6 +163,39 @@ static inline const char *GetType(const string &type)
 		throw "min12int* is not supported in Metal";
 
 	return nullptr;
+}
+
+static inline bool RequiresTypeConversion(const string &type)
+{
+    if (type.compare(0, 3, "int") == 0) {
+        switch (*(type.end() - 1)) {
+            case '2':
+            case '3':
+            case '4':
+            case 'f': return true;
+        }
+    }
+    return false;
+}
+
+static inline string GetScalarTypeFromVectorType(const string &type)
+{
+    switch (*(type.end() - 1)) {
+        case '2':
+        case '3':
+        case '4': return type.substr(0, type.size() - 1);
+        default: return type;
+    }
+}
+
+static inline string GetDimensionFromVectorType(const string &type)
+{
+    switch (*(type.end() - 1)) {
+        case '2':
+        case '3':
+        case '4': return type.substr(type.size() - 1, 1);
+        default: return "";
+    }
 }
 
 inline void ShaderBuilder::WriteType(const char *rawType)
@@ -463,19 +517,19 @@ inline bool ShaderBuilder::WriteTextureLoad() {
     // metal "read" can't take uint3
     if (cf_token_is(cfp, "int3")) {
         blog(LOG_INFO, "ok...");
-        
+
         string funcName = "static_cast<uint2>";
         output.write(funcName.c_str(), funcName.length());
-        
+
         // open parenthesis
         if (!cf_next_token(cfp))    return false;
         if (!cf_token_is(cfp, "(")) return false;
         output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
-        
+
         // grab first paramater only
         int parenCount = 2; //includes ( of read from the start of the fucntion
         string firstParam = "";
-        
+
         if (!cf_next_token(cfp))    return false;
         while (true) {
             if (cf_token_is(cfp, "(")) parenCount++;
@@ -492,15 +546,15 @@ inline bool ShaderBuilder::WriteTextureLoad() {
                 output << ")";
                 break;
             }
-            
+
             output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
             if (!cf_next_token(cfp))    return false;
         }
-        
+
         // iterate through rest of token until the end of original function
         while (parenCount > 0) {
             if (!cf_next_token(cfp))    return false;
-            
+
             if (cf_token_is(cfp, "(")) parenCount++;
             if (cf_token_is(cfp, ")")) {
                 parenCount--;
@@ -508,11 +562,11 @@ inline bool ShaderBuilder::WriteTextureLoad() {
             }
         }
     } else {
-        output << "(u";
+        output << "uint2(";
         
         WriteFunctionContent(cfp->cur_token, ")");
         
-        output << ").xy)";
+        output << ".xy))";
     }
     
     return true;
@@ -784,8 +838,109 @@ inline bool ShaderBuilder::IsNextCompareOperator(struct cf_token *&token)
 	return false;
 }
 
-inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token,
-		const char *end)
+inline struct shader_struct *ShaderBuilder::GetStruct(char *name)
+{
+    for (struct shader_struct *var = parser->structs.array;
+         var != parser->structs.array + parser->structs.num;
+         var++) {
+        if (strcmp(name, var->name) == 0)
+            return var;
+    }
+
+    return nil;
+}
+
+inline char *ShaderBuilder::GetStructValueDataType(struct shader_struct *obj, struct cf_token *token)
+{
+    for (struct shader_var *var = obj->vars.array;
+         var != obj->vars.array + obj->vars.num;
+         var++) {
+        if (strref_cmp(&token->str, var->name) == 0)
+            return var->type;
+    }
+
+    return nil;
+}
+
+inline struct shader_var *ShaderBuilder::GetFunctionParam(struct cf_token *token)
+{
+    if (currentFunc == nil)
+        return nil;
+    
+    for (struct shader_var *var = currentFunc->params.array;
+         var != currentFunc->params.array + currentFunc->params.num;
+         var++) {
+        if (strref_cmp(&token->str, var->name) == 0)
+            return var;
+    }
+
+    return nil;
+}
+
+inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const char *initializerType) {
+    
+    output.write(token->str.array, token->str.len);
+    
+    stringstream buffer;
+    while (token->type != CFTOKEN_NONE) {
+        token++;
+        buffer.write(token->str.array, token->str.len);
+        
+        if (strref_cmp(&token->str, ")") == 0)
+            break;
+        
+        if (token->type == CFTOKEN_NAME) {
+            shader_var *var = GetFunctionParam(token);
+            if (var == nil)
+                GetVariable(token);
+
+            if (var != nil) {
+                // try to get primitive type first
+                const char *primitive = GetType(var->type);
+                while (primitive == nil) {
+                    // attempt to get struct type if not primitive
+                    shader_struct *struct_var = GetStruct(var->type);
+                    if (struct_var == nil)
+                        throw "Unknown data type";
+                    
+                    // get next token and write to buffer
+                    token++;
+                    buffer.write(token->str.array, token->str.len);
+                    
+                    // check for period. if not period, we can't convert struct
+                    if (strref_cmp(&token->str, ".") != 0) throw "Cannot create explicit typecast for struct type";
+                    
+                    // get next token and write to buffer
+                    token++;
+                    buffer.write(token->str.array, token->str.len);
+
+                    // now at data value of struct
+                    char *dataType = GetStructValueDataType(struct_var, token);
+                    primitive = GetType(dataType);
+                }
+                
+                // should have our primitive data type now
+                string scalarSourceType = GetScalarTypeFromVectorType(primitive);
+                string scalarDestinationType = GetScalarTypeFromVectorType(initializerType);
+                string dimension = GetDimensionFromVectorType(primitive);
+                
+                if (scalarSourceType.compare(scalarDestinationType)) {
+                    output << "static_cast<" << scalarDestinationType << dimension << ">(" << buffer.str() << ")";
+                    buffer.str("");
+                } else {
+                    output << buffer.str();
+                    buffer.str("");
+                }
+            }
+        } else {
+            output << buffer.str();
+            buffer.str("");
+        }
+    }
+    
+}
+
+inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const char *end)
 {
 	string temp;
 	if (token->type != CFTOKEN_NAME)
@@ -799,6 +954,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token,
 
 	bool dot = false;
 	bool cmp = false;
+    char *initializerType = nil;
 	while (token->type != CFTOKEN_NONE) {
 		token++;
 
@@ -806,6 +962,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token,
 			break;
 
 		if (token->type == CFTOKEN_NAME) {
+            initializerType = nil;
 			if (!WriteTypeToken(token) && !WriteIntrinsic(token) &&
 			    (dot || !WriteConstantVariable(token))) {
 				if (dot)
@@ -825,20 +982,34 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token,
 
 				cmp = cmp2;
 			}
-
+            string name(token->str.array, token->str.len);
+            if (RequiresTypeConversion(name)) {
+                initializerType = (char *)name.c_str();
+            }
 		} else if (token->type == CFTOKEN_OTHER) {
-			if (*token->str.array == '{')
-				WriteFunctionContent(token, "}");
+            if (*token->str.array == '{') {
+                initializerType = nil;
+                WriteFunctionContent(token, "}");
+            }
 			else if (*token->str.array == '(') {
-				WriteFunctionContent(token, ")");
-				WriteFunctionAdditionalParam(temp);
-			} else if (*token->str.array == '.')
-				dot = true;
+                if (initializerType != nil) {
+                    WriteTypeInitializer(token, initializerType);
+                    initializerType = nil;
+                } else {
+                    WriteFunctionContent(token, ")");
+                    WriteFunctionAdditionalParam(temp);
+                }
+            } else if (*token->str.array == '.') {
+                initializerType = nil;
+                dot = true;
+            }
 
 			output.write(token->str.array, token->str.len);
-
-		} else
-			output.write(token->str.array, token->str.len);
+        } else {
+            initializerType = nil;
+            output.write(token->str.array, token->str.len);
+        }
+			
 	}
 }
 
@@ -969,8 +1140,10 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	output << ")" << endl;
 
 	token = func->start;
+    currentFunc = (shader_func *)func;
 	WriteFunctionContent(token, "}");
-
+    currentFunc = nil;
+    
 	output << '}' << endl << endl;
 }
 
