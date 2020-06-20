@@ -347,6 +347,7 @@ void device_load_vertexshader(gs_device_t *device,
                               gs_shader_t *vertshader)
 {
     assert(device != nil);
+    assert(vertshader != nil);
     assert(vertshader->objectType == GS_SHADER);
     assert(vertshader->shaderType == GS_SHADER_VERTEX);
     

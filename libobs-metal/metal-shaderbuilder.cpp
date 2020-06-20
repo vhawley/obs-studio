@@ -69,7 +69,8 @@ private:
 	void WriteType(const char *type);
 	bool WriteTypeToken(struct cf_token *token);
 	bool WriteMul(struct cf_token *&token);
-	bool WriteConstantVariable(struct cf_token *token);
+    bool WriteConstantVariable(struct cf_token *token);
+    bool WriteCompilerVariable(struct cf_token *token);
 	bool WriteTextureCall(struct cf_token *&token,
 			ShaderTextureCallType type);
 	bool WriteTextureCode(struct cf_token *&token, struct shader_var *var);
@@ -163,6 +164,14 @@ static inline const char *GetType(const string &type)
 		throw "min12int* is not supported in Metal";
 
 	return nullptr;
+}
+
+static inline const char *GetCompilerValue(const string &type)
+{
+    if (type == "obs_glsl_compile")
+        return "false";
+
+    return nullptr;
 }
 
 static inline bool RequiresTypeConversion(const string &type)
@@ -502,6 +511,17 @@ inline bool ShaderBuilder::WriteConstantVariable(struct cf_token *token)
 		return true;
 	}
 	return false;
+}
+
+inline bool ShaderBuilder::WriteCompilerVariable(struct cf_token *token)
+{
+    string variable(token->str.array, token->str.len);
+    const char *value = GetCompilerValue(variable);
+    if (value == nullptr)
+        return false;
+
+    output << value;
+    return true;
 }
 
 inline bool ShaderBuilder::WriteTextureLoad() {
@@ -903,7 +923,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 		output.write(token->str.array, token->str.len);
 
 	else if ((!WriteTypeToken(token) && !WriteIntrinsic(token) &&
-	     !WriteConstantVariable(token))) {
+	     !WriteConstantVariable(token) && !WriteCompilerVariable(token))) {
 		temp = string(token->str.array, token->str.len);
 		output << temp;
 	}
@@ -919,7 +939,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 
 		if (token->type == CFTOKEN_NAME) {
             initializerType = nil;
-			if (!WriteTypeToken(token) && !WriteIntrinsic(token) &&
+			if (!WriteTypeToken(token) && !WriteIntrinsic(token) && !WriteCompilerVariable(token) && 
 			    (dot || !WriteConstantVariable(token))) {
 				if (dot)
 					dot = false;
