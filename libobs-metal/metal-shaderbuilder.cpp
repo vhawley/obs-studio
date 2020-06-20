@@ -208,17 +208,23 @@ static inline string GetDimensionFromVectorType(const string &type)
 }
 
 static inline string *VertInOutPrefix(string value) {
-    string check("VertInOut");
+    vector<string> checks;
+    checks.push_back("VertInOut");
+    checks.push_back("VertData");
     
-    if (value.size() < check.size()) {
-        return nil;
-    }
-    
-    if (!value.compare(value.size()-check.size(), check.size(), check)) {
-        if (value.size() == check.size()) {
-            return new string("");
+    for (vector<string>::iterator it = checks.begin(); it != checks.end(); it++) {
+        string check = *it;
+        if (value.size() < check.size()) {
+            continue;
         }
-        return new string(value.substr(0, value.size()-check.size()));
+        
+        if (!value.compare(value.size()-check.size(), check.size(), check)) {
+            if (value.size() == check.size()) {
+                if (value.compare("VertInOut")) return new string("");
+                if (value.compare("VertData")) return new string("Data");
+            }
+            return new string(value.substr(0, value.size()-check.size()));
+        }
     }
     
     return nil;
@@ -487,8 +493,10 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
             WriteVariable(var);
 
             const char* mapping = GetMapping(var->mapping);
+            output << " [[attribute(" << attributeId++ << ")";
             if (mapping != nullptr && strcmp(mapping, "color(0)"))
-                output << " [[" << mapping << "]]";
+                output << ", " << mapping;
+            output << "]]";
 
             output << ';' << endl;
         }
@@ -1099,8 +1107,9 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 		if (isMain) {
 			if (!isFirst)
 				throw "Failed to add type";
-			output << " [[stage_in]]";
-
+            if (!strcmp(param->type, "uint") && !strcmp(param->name, "id")) {
+                output << " [[vertex_id]]";
+            } else output << " [[stage_in]]";
 		}
 
 		if (isFirst)

@@ -346,22 +346,37 @@ void device_load_samplerstate(gs_device_t *device,
 void device_load_vertexshader(gs_device_t *device,
                               gs_shader_t *vertshader)
 {
-    assert(device != nil);
-    assert(vertshader != nil);
-    assert(vertshader->objectType == GS_SHADER);
-    assert(vertshader->shaderType == GS_SHADER_VERTEX);
+    id<MTLFunction>     function  = nil;
+    MTLVertexDescriptor *vertDesc = nil;
     
-    gs_vertex_shader *vs = static_cast<gs_vertex_shader *>(vertshader);
-    if (device->currentVertexShader != vs)
-        device->currentVertexShader = vs;
+    if (device->currentVertexShader == vertshader)
+        return;
+    
+    gs_vertex_shader *vs = static_cast<gs_vertex_shader*>(vertshader);
+    if (vertshader) {
+        if (vertshader->shaderType != GS_SHADER_VERTEX) {
+            blog(LOG_ERROR, "device_load_vertexshader (Metal): "
+                 "Specified shader is not a vertex "
+                 "shader");
+            return;
+        }
+        
+        function = vs->metalFunction;
+        vertDesc = vs->vertexDescriptor;
+    }
+    
+    device->currentVertexShader = vs;
+    
+    device->renderPipelineDescriptor.vertexFunction = function;
+    device->renderPipelineDescriptor.vertexDescriptor = vertDesc;
+    
+    device->pipelineStateChanged = true;
 }
 
 void device_load_pixelshader(gs_device_t *device,
                              gs_shader_t *pixelshader)
 {
     assert(device != nil);
-    assert(pixelshader->objectType == GS_SHADER);
-    assert(pixelshader->shaderType == GS_SHADER_PIXEL);
     
     gs_pixel_shader *ps = (gs_pixel_shader *)pixelshader;
     
