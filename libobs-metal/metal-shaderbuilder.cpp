@@ -487,7 +487,7 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
             WriteVariable(var);
 
             const char* mapping = GetMapping(var->mapping);
-            if (mapping != nullptr)
+            if (mapping != nullptr && strcmp(mapping, "color(0)"))
                 output << " [[" << mapping << "]]";
 
             output << ';' << endl;
