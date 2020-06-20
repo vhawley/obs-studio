@@ -423,31 +423,144 @@ gs_shader_t *device_get_pixel_shader(const gs_device_t *device)
 
 gs_texture_t *device_get_render_target(const gs_device_t *device)
 {
+    if (device->currentSwapChain &&
+        device->currentRenderTarget == device->currentSwapChain->CurrentTarget())
+        return nullptr;
     
+    return device->currentRenderTarget;
 }
 
 gs_zstencil_t *device_get_zstencil_target(const gs_device_t *device)
 {
+    return device->currentZStencilBuffer;
 }
 
 void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
                               gs_zstencil_t *zstencil)
 {
+    if (device->currentSwapChain) {
+        if (!tex)
+            tex = device->currentSwapChain->CurrentTarget();
+    }
     
+    if (device->currentRenderTarget == tex &&
+        device->currentZStencilBuffer == zstencil)
+        return;
+    
+    if (tex && tex->textureType != GS_TEXTURE_2D) {
+        blog(LOG_ERROR, "device_set_render_target (Metal): "
+             "texture is not a 2D texture");
+        return;
+    }
+    
+    if (tex && tex->metalTexture == nil) {
+        blog(LOG_ERROR, "device_set_render_target (Metal): "
+             "texture is null");
+        return;
+    }
+    
+    device->currentRenderTarget = tex;
+    device->currentRenderSide = 0;
+    device->currentZStencilBuffer = zstencil;
+    device->renderPassDescriptor.colorAttachments[0].texture = nil;
+    device->renderPassDescriptor.depthAttachment.texture   = nil;
+    device->renderPassDescriptor.stencilAttachment.texture = nil;
+    
+    if (tex) {
+        device->renderPassDescriptor.colorAttachments[0].texture = tex->metalTexture;
+        device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = tex->metalPixelFormat;
+    }
+    
+    if (zstencil) {
+        device->renderPassDescriptor.depthAttachment.texture = zstencil->metalTexture;
+        device->renderPassDescriptor.stencilAttachment.texture = zstencil->metalTexture;
+        device->renderPipelineDescriptor.depthAttachmentPixelFormat = zstencil->textureDescriptor.pixelFormat;
+        device->renderPipelineDescriptor.stencilAttachmentPixelFormat = zstencil->textureDescriptor.pixelFormat;
+    }
+    
+    device->pipelineStateChanged = true;
 }
 
 void device_set_cube_render_target(gs_device_t *device,
                                    gs_texture_t *cubetex, int side,
                                    gs_zstencil_t *zstencil)
 {
+    if (device->currentSwapChain) {
+        if (!cubetex)
+            cubetex = device->currentSwapChain->CurrentTarget();
+    }
     
+    if (device->currentRenderTarget == cubetex &&
+        device->currentRenderSide == side &&
+        device->currentZStencilBuffer == zstencil)
+        return;
+    
+    if (cubetex->textureType != GS_TEXTURE_CUBE) {
+        blog(LOG_ERROR, "device_set_cube_render_target (Metal): "
+             "texture is not a cube texture");
+        return;
+    }
+    
+    if (cubetex && cubetex->metalTexture == nil) {
+        blog(LOG_ERROR, "device_set_cube_render_target (Metal): "
+             "texture is null");
+        return;
+    }
+    
+    device->currentRenderTarget = cubetex;
+    device->currentRenderSide = side;
+    device->currentZStencilBuffer = zstencil;
+    device->renderPassDescriptor.colorAttachments[0].texture = nil;
+    device->renderPassDescriptor.depthAttachment.texture   = nil;
+    device->renderPassDescriptor.stencilAttachment.texture = nil;
+    
+    if (cubetex) {
+        device->renderPassDescriptor.colorAttachments[0].texture = cubetex->metalTexture;
+        device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = cubetex->metalPixelFormat;
+    }
+    
+    if (zstencil) {
+        device->renderPassDescriptor.depthAttachment.texture = zstencil->metalTexture;
+        device->renderPassDescriptor.stencilAttachment.texture = zstencil->metalTexture;
+        device->renderPipelineDescriptor.depthAttachmentPixelFormat = zstencil->textureDescriptor.pixelFormat;
+        device->renderPipelineDescriptor.stencilAttachmentPixelFormat = zstencil->textureDescriptor.pixelFormat;
+    }
+    
+    device->pipelineStateChanged = true;
 }
 
-void device_copy_texture(gs_device_t *device, gs_texture_t *dst,
-                         gs_texture_t *src)
+inline void gs_device::CopyTex(id<MTLTexture> dst,
+                               uint32_t dst_x, uint32_t dst_y,
+                               gs_texture_t *src, uint32_t src_x, uint32_t src_y,
+                               uint32_t src_w, uint32_t src_h)
 {
+    assert(commandBuffer != nil);
     
+    if (src_w == 0)
+        src_w = src->width;
+    if (src_h == 0)
+        src_h = src->height;
+    
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> commandEncoder =
+        [commandBuffer blitCommandEncoder];
+        MTLOrigin sourceOrigin      = MTLOriginMake(src_x, src_y, 0);
+        MTLSize   sourceSize        = MTLSizeMake(src_w, src_h, 1);
+        MTLOrigin destinationOrigin = MTLOriginMake(dst_x, dst_y, 0);
+        [commandEncoder copyFromTexture:src->metalTexture
+                            sourceSlice:0
+                            sourceLevel:0
+                           sourceOrigin:sourceOrigin
+                             sourceSize:sourceSize
+                              toTexture:dst
+                       destinationSlice:0
+                       destinationLevel:0
+                      destinationOrigin:destinationOrigin];
+        [commandEncoder endEncoding];
+    }
 }
+
+
 
 void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
                                 uint32_t dst_x, uint32_t dst_y,
@@ -455,13 +568,72 @@ void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
                                 uint32_t src_y, uint32_t src_w,
                                 uint32_t src_h)
 {
-    
+    try {
+        
+        if (!src)
+            throw "Source texture is null";
+        if (!dst)
+            throw "Destination texture is null";
+        if (src->textureType != GS_TEXTURE_2D || dst->textureType != GS_TEXTURE_2D)
+            throw "Source and destination textures must be a 2D "
+            "textures";
+        if (dst->colorFormat != src->colorFormat)
+            throw "Source and destination formats do not match";
+        
+        uint32_t copyWidth  = src_w ? src_w : (src->width - src_x);
+        uint32_t copyHeight = src_h ? src_h : (src->height - src_y);
+        
+        uint32_t dstWidth  = dst->width  - dst_x;
+        uint32_t dstHeight = dst->height - dst_y;
+        
+        if (dstWidth < copyWidth || dstHeight < copyHeight)
+            throw "Destination texture region is not big "
+            "enough to hold the source region";
+        
+        if (dst_x == 0 && dst_y == 0 &&
+            src_x == 0 && src_y == 0 &&
+            src_w == 0 && src_h == 0) {
+            copyWidth  = 0;
+            copyHeight = 0;
+        }
+        
+        device->CopyTex(dst->metalTexture, dst_x, dst_y,
+                        src, src_x, src_y, copyWidth, copyHeight);
+        
+    } catch(const char *error) {
+        blog(LOG_ERROR, "device_copy_texture (Metal): %s", error);
+    }
+}
+
+
+void device_copy_texture(gs_device_t *device, gs_texture_t *dst,
+                         gs_texture_t *src)
+{
+    device_copy_texture_region(device, dst, 0, 0, src, 0, 0, 0, 0);
 }
 
 void device_stage_texture(gs_device_t *device, gs_stagesurf_t *dst,
                           gs_texture_t *src)
 {
-    
+    try {
+        if (!src)
+             throw "Source texture is null";
+         if (src->textureType != GS_TEXTURE_2D)
+             throw "Source texture must be a 2D texture";
+         if (!dst)
+             throw "Destination surface is null";
+         if (dst->colorFormat != src->colorFormat)
+             throw "Source and destination formats do not match";
+         if (dst->width  != src->width ||
+             dst->height != src->height)
+             throw "Source and destination must have the same "
+                   "dimensions";
+
+          device->CopyTex(dst->metalTexture, 0, 0, src, 0, 0, 0, 0);
+
+      } catch (const char *error) {
+         blog(LOG_ERROR, "device_stage_texture (Metal): %s", error);
+     }
 }
 
 void device_begin_frame(gs_device_t *device)

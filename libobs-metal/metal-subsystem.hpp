@@ -157,6 +157,11 @@ struct gs_zstencil_buffer : gs_object {
     uint32_t height;
     gs_zstencil_format zStencilFormat;
     
+    MTLTextureDescriptor     *textureDescriptor;
+    id<MTLTexture>           metalTexture;
+    
+    void InitBuffer();
+    
     gs_zstencil_buffer(gs_device_t *device, uint32_t width, uint32_t height, gs_zstencil_format format);
 };
 
@@ -164,6 +169,13 @@ struct gs_stage_surface : gs_object {
     uint32_t width;
     uint32_t height;
     gs_color_format colorFormat;
+    
+    MTLTextureDescriptor  *textureDescriptor;
+    id<MTLTexture>        metalTexture;
+    vector<uint8_t>       textureData;
+    
+    void DownloadTexture();
+    void InitTexture();
     
     gs_stage_surface(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format);
 };
@@ -261,6 +273,8 @@ struct gs_device {
     
     gs_vertex_buffer *lastVertexBuffer = nil;
     gs_vertex_shader *lastVertexShader = nil;
+    
+    void CopyTex(id<MTLTexture> dst, uint32_t dst_x, uint32_t dst_y, gs_texture_t *src, uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h);
     
     gs_device(uint32_t adapterIdx);
 };
