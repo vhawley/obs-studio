@@ -507,67 +507,11 @@ inline bool ShaderBuilder::WriteConstantVariable(struct cf_token *token)
 inline bool ShaderBuilder::WriteTextureLoad() {
     struct cf_parser *cfp = &parser->cfp;
     
-    output << "read(";
+    output << "read(uint2";
     
-    if (!cf_next_token(cfp))    return false;
+    WriteFunctionContent(cfp->cur_token, ")");
     
-    // function name
-    if (cfp->cur_token->type != CFTOKEN_NAME) return false;
-    
-    // metal "read" can't take uint3
-    if (cf_token_is(cfp, "int3")) {
-        blog(LOG_INFO, "ok...");
-
-        string funcName = "static_cast<uint2>";
-        output.write(funcName.c_str(), funcName.length());
-
-        // open parenthesis
-        if (!cf_next_token(cfp))    return false;
-        if (!cf_token_is(cfp, "(")) return false;
-        output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
-
-        // grab first paramater only
-        int parenCount = 2; //includes ( of read from the start of the fucntion
-        string firstParam = "";
-
-        if (!cf_next_token(cfp))    return false;
-        while (true) {
-            if (cf_token_is(cfp, "(")) parenCount++;
-            if (cf_token_is(cfp, ")")) {
-                parenCount--;
-                if (parenCount <= 2) { // end of first param
-                    for (int i = 0; i < parenCount; i++) {
-                        output << ")";
-                    }
-                    break;
-                }
-            }
-            if (cf_token_is(cfp, ",") && parenCount == 2) {
-                output << ")";
-                break;
-            }
-
-            output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
-            if (!cf_next_token(cfp))    return false;
-        }
-
-        // iterate through rest of token until the end of original function
-        while (parenCount > 0) {
-            if (!cf_next_token(cfp))    return false;
-
-            if (cf_token_is(cfp, "(")) parenCount++;
-            if (cf_token_is(cfp, ")")) {
-                parenCount--;
-                if (parenCount < 1) output.write(cfp->cur_token->str.array, cfp->cur_token->str.len);
-            }
-        }
-    } else {
-        output << "uint2(";
-        
-        WriteFunctionContent(cfp->cur_token, ")");
-        
-        output << ".xy))";
-    }
+    output << ".xy))";
     
     return true;
 }
