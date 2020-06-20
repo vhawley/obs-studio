@@ -47,6 +47,8 @@ gs_vertex_shader::gs_vertex_shader(gs_device_t *device, const char *shader, cons
     
     Compile();
     
+    blog(LOG_INFO, "Converted vert shader...");
+    
     hasNormals  = info.normals;
     hasColors   = info.colors;
     hasTangents = info.tangents;

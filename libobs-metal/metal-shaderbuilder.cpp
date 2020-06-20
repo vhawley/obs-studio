@@ -207,6 +207,23 @@ static inline string GetDimensionFromVectorType(const string &type)
     }
 }
 
+static inline string *VertInOutPrefix(string value) {
+    string check("VertInOut");
+    
+    if (value.size() < check.size()) {
+        return nil;
+    }
+    
+    if (!value.compare(value.size()-check.size(), check.size(), check)) {
+        if (value.size() == check.size()) {
+            return new string("");
+        }
+        return new string(value.substr(0, value.size()-check.size()));
+    }
+    
+    return nil;
+};
+
 inline void ShaderBuilder::WriteType(const char *rawType)
 {
 	string type(rawType);
@@ -218,9 +235,12 @@ inline bool ShaderBuilder::WriteTypeToken(struct cf_token *token)
 {
 	string type(token->str.array, token->str.len);
     
-    if (isVertexShader() && !strref_cmp(&token->str, "VertInOut")) {
-        output << "VertexOut";
-        return true;
+    if (isVertexShader()) {
+        string *vertPrefix = VertInOutPrefix(type);
+        if (vertPrefix) {
+            output << *vertPrefix << "VertexOut";
+            return true;
+        }
     }
     
 	const char *newType = GetType(type);
@@ -439,16 +459,12 @@ inline void ShaderBuilder::WriteSamplers()
 	}
 }
 
-static inline char *VertInOutPrefix(char *value) {
-    // move VertInOut checks into here. return prefix of VertInOut
-    return nil;
-};
-
 inline void ShaderBuilder::WriteStruct(const shader_struct *str)
 {
-    if (isVertexShader() && !strcmp(str->name, "VertInOut")) { // print separate structs for in and out due to metal limitations
+    string *vertPrefix = VertInOutPrefix(string(str->name));
+    if (isVertexShader() && vertPrefix) { // print separate structs for in and out due to metal limitations
         // print VertexIn struct
-        output << "struct VertexIn {" << endl;
+        output << "struct " << *vertPrefix << "VertexIn {" << endl;
         size_t attributeId = 0;
         for (struct shader_var *var = str->vars.array;
              var != str->vars.array + str->vars.num;
@@ -463,7 +479,7 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
         output << "};" << endl << endl;
         
         // print VertexOut struct
-        output << "struct VertexOut {" << endl;
+        output << "struct " << *vertPrefix << "VertexOut {" << endl;
         for (struct shader_var *var = str->vars.array;
              var != str->vars.array + str->vars.num;
              var++) {
@@ -1055,8 +1071,12 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	unique(info.useSamplers.begin(), info.useSamplers.end());
 	functionInfo.emplace(funcName, info);
 
-    if (isVertexShader() && strcmp(func->return_type, "VertInOut") == 0) output << "VertexOut " << funcName << '(';
+    if (isVertexShader()) {
+        string *vertPrefix = VertInOutPrefix(func->return_type);
+        if (vertPrefix) output << *vertPrefix << "VertexOut " << funcName << '(';
         else output << func->return_type << ' ' << funcName << '(';
+    }
+    else output << func->return_type << ' ' << funcName << '(';
 	
 
 	bool isFirst = true;
@@ -1065,15 +1085,16 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	     param++) {
 		if (!isFirst)
 			output << ", ";
+        
+        if (isVertexShader()) {
+            string *vertPrefix = VertInOutPrefix(param->type);
+            if (vertPrefix) {
+                if (param->var_type == SHADER_VAR_CONST)
+                    output << "constant ";
 
-        if (isVertexShader() && strcmp(func->return_type, "VertInOut") == 0) {
-            if (param->var_type == SHADER_VAR_CONST)
-                output << "constant ";
-
-            output << "VertexIn " << param->name;
-        } else {
-            WriteVariable(param);
-        }
+                output << *vertPrefix << "VertexIn " << param->name;
+            } else WriteVariable(param);
+        } else WriteVariable(param);
 
 		if (isMain) {
 			if (!isFirst)
