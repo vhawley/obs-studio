@@ -32,83 +32,106 @@ gs_pixel_shader::gs_pixel_shader(gs_device_t *device, const char *shader, const 
 gs_vertex_shader::gs_vertex_shader(gs_device_t *device, const char *shader, const char *file)
 : gs_shader(device, shader, file, GS_SHADER_VERTEX)
 {
-    // Compile Metal shader
+    ShaderProcessor     processor(device);
+    ShaderBufferInfo    info;
+    MTLVertexDescriptor *vertdesc;
+    
+    vertdesc = [[MTLVertexDescriptor alloc] init];
+    
+    processor.Process(shader, file);
+    metalShader = processor.BuildString(shaderType);
+    processor.BuildParams(params);
+    processor.BuildParamInfo(info);
+    processor.BuildVertexDesc(vertdesc);
+    BuildConstantBuffer();
+    
+    Compile();
+    
+    hasNormals  = info.normals;
+    hasColors   = info.colors;
+    hasTangents = info.tangents;
+    texUnits    = info.texUnits;
+    
+    vertexDescriptor  = vertdesc;
+    
+    viewProjection = gs_shader_get_param_by_name(this, "ViewProj");
+    world = gs_shader_get_param_by_name(this, "World");
 }
 
 void gs_shader::BuildConstantBuffer()
 {
-   for (size_t i = 0; i < params.size(); i++) {
-       gs_shader_param &param = params[i];
-       size_t          size   = 0;
-
-       switch (param.type) {
-       case GS_SHADER_PARAM_BOOL:
-       case GS_SHADER_PARAM_INT:
-       case GS_SHADER_PARAM_FLOAT:     size = sizeof(float);     break;
-       case GS_SHADER_PARAM_INT2:
-       case GS_SHADER_PARAM_VEC2:      size = sizeof(vec2);      break;
-       case GS_SHADER_PARAM_INT3:
-       case GS_SHADER_PARAM_VEC3:      size = sizeof(float) * 3; break;
-       case GS_SHADER_PARAM_INT4:
-       case GS_SHADER_PARAM_VEC4:      size = sizeof(vec4);      break;
-       case GS_SHADER_PARAM_MATRIX4X4:
-           size = sizeof(float) * 4 * 4;
-           break;
-       case GS_SHADER_PARAM_TEXTURE:
-       case GS_SHADER_PARAM_STRING:
-       case GS_SHADER_PARAM_UNKNOWN:
-           continue;
-       }
-
-       /* checks to see if this constant needs to start at a new
-        * register */
-       if (size && (constantSize & 15) != 0) {
-           size_t alignMax = (constantSize + 15) & ~15;
-
-           if ((size + constantSize) > alignMax)
-               constantSize = alignMax;
-       }
-
-       param.pos = constantSize;
-       constantSize += size;
-   }
-
-   for (gs_shader_param &param : params)
-       gs_shader_set_default(&param);
-
-   data.resize(constantSize);
+    for (size_t i = 0; i < params.size(); i++) {
+        gs_shader_param &param = params[i];
+        size_t          size   = 0;
+        
+        switch (param.type) {
+            case GS_SHADER_PARAM_BOOL:
+            case GS_SHADER_PARAM_INT:
+            case GS_SHADER_PARAM_FLOAT:     size = sizeof(float);     break;
+            case GS_SHADER_PARAM_INT2:
+            case GS_SHADER_PARAM_VEC2:      size = sizeof(vec2);      break;
+            case GS_SHADER_PARAM_INT3:
+            case GS_SHADER_PARAM_VEC3:      size = sizeof(float) * 3; break;
+            case GS_SHADER_PARAM_INT4:
+            case GS_SHADER_PARAM_VEC4:      size = sizeof(vec4);      break;
+            case GS_SHADER_PARAM_MATRIX4X4:
+                size = sizeof(float) * 4 * 4;
+                break;
+            case GS_SHADER_PARAM_TEXTURE:
+            case GS_SHADER_PARAM_STRING:
+            case GS_SHADER_PARAM_UNKNOWN:
+                continue;
+        }
+        
+        /* checks to see if this constant needs to start at a new
+         * register */
+        if (size && (constantSize & 15) != 0) {
+            size_t alignMax = (constantSize + 15) & ~15;
+            
+            if ((size + constantSize) > alignMax)
+                constantSize = alignMax;
+        }
+        
+        param.pos = constantSize;
+        constantSize += size;
+    }
+    
+    for (gs_shader_param &param : params)
+        gs_shader_set_default(&param);
+    
+    data.resize(constantSize);
 }
 
 void gs_shader::Compile()
 {
-   if (metalCompileOptions == nil) {
-       metalCompileOptions = [[MTLCompileOptions alloc] init];
-       metalCompileOptions.languageVersion = MTLLanguageVersion2_2;
-   }
-
-   NSString *nsShaderString = [[NSString alloc]
-           initWithBytesNoCopy:(void*)metalShader.data()
-           length:metalShader.length()
-           encoding:NSUTF8StringEncoding freeWhenDone:NO];
-   NSError *errors;
-   id<MTLLibrary> lib = [device->metalDevice newLibraryWithSource:nsShaderString
-           options:metalCompileOptions error:&errors];
-   if (lib == nil) {
-       blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
-               metalShader.c_str());
-
-       if (errors != nil)
-           throw ShaderError(errors);
-       else
-           throw "Failed to compile shader";
-   }
-
-   id<MTLFunction> func = [lib newFunctionWithName:@"_main"];
-   if (func == nil)
-       throw "Failed to create function";
-
-   metalLibrary  = lib;
-   metalFunction = func;
+    if (metalCompileOptions == nil) {
+        metalCompileOptions = [[MTLCompileOptions alloc] init];
+        metalCompileOptions.languageVersion = MTLLanguageVersion2_2;
+    }
+    
+    NSString *nsShaderString = [[NSString alloc]
+                                initWithBytesNoCopy:(void*)metalShader.data()
+                                length:metalShader.length()
+                                encoding:NSUTF8StringEncoding freeWhenDone:NO];
+    NSError *errors;
+    id<MTLLibrary> lib = [device->metalDevice newLibraryWithSource:nsShaderString
+                                                           options:metalCompileOptions error:&errors];
+    if (lib == nil) {
+        blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
+             metalShader.c_str());
+        
+        if (errors != nil)
+            throw ShaderError(errors);
+        else
+            throw "Failed to compile shader";
+    }
+    
+    id<MTLFunction> func = [lib newFunctionWithName:@"_main"];
+    if (func == nil)
+        throw "Failed to create function";
+    
+    metalLibrary  = lib;
+    metalFunction = func;
 }
 
 void gs_shader_destroy(gs_shader_t *shader)

@@ -217,6 +217,12 @@ inline void ShaderBuilder::WriteType(const char *rawType)
 inline bool ShaderBuilder::WriteTypeToken(struct cf_token *token)
 {
 	string type(token->str.array, token->str.len);
+    
+    if (isVertexShader() && !strref_cmp(&token->str, "VertInOut")) {
+        output << "VertexOut";
+        return true;
+    }
+    
 	const char *newType = GetType(type);
 	if (newType == nullptr)
 		return false;
@@ -433,29 +439,66 @@ inline void ShaderBuilder::WriteSamplers()
 	}
 }
 
+static inline char *VertInOutPrefix(char *value) {
+    // move VertInOut checks into here. return prefix of VertInOut
+    return nil;
+};
+
 inline void ShaderBuilder::WriteStruct(const shader_struct *str)
 {
-	output << "struct " << str->name << " {" << endl;
+    if (isVertexShader() && !strcmp(str->name, "VertInOut")) { // print separate structs for in and out due to metal limitations
+        // print VertexIn struct
+        output << "struct VertexIn {" << endl;
+        size_t attributeId = 0;
+        for (struct shader_var *var = str->vars.array;
+             var != str->vars.array + str->vars.num;
+             var++) {
+            output << '\t';
+            WriteVariable(var);
 
-	size_t attributeId = 0;
-	for (struct shader_var *var = str->vars.array;
-	     var != str->vars.array + str->vars.num;
-	     var++) {
-		output << '\t';
-		WriteVariable(var);
+            output << " [[attribute(" << attributeId++ << ")]]";
 
-		const char* mapping = GetMapping(var->mapping);
-		if (isVertexShader()) {
-			output << " [[attribute(" << attributeId++ << ")";
-			if (mapping != nullptr)
-				output << ", " << mapping;
-			output << "]]";
-		}
+            output << ';' << endl;
+        }
+        output << "};" << endl << endl;
+        
+        // print VertexOut struct
+        output << "struct VertexOut {" << endl;
+        for (struct shader_var *var = str->vars.array;
+             var != str->vars.array + str->vars.num;
+             var++) {
+            output << '\t';
+            WriteVariable(var);
 
-		output << ';' << endl;
-	}
+            const char* mapping = GetMapping(var->mapping);
+            if (mapping != nullptr)
+                output << " [[" << mapping << "]]";
 
-	output << "};" << endl << endl;
+            output << ';' << endl;
+        }
+        output << "};" << endl << endl;
+    } else {
+        output << "struct " << str->name << " {" << endl;
+        size_t attributeId = 0;
+        for (struct shader_var *var = str->vars.array;
+             var != str->vars.array + str->vars.num;
+             var++) {
+            output << '\t';
+            WriteVariable(var);
+
+            const char* mapping = GetMapping(var->mapping);
+            if (isVertexShader()) {
+                output << " [[attribute(" << attributeId++ << ")";
+                if (mapping != nullptr)
+                    output << ", " << mapping;
+                output << "]]";
+            }
+
+            output << ';' << endl;
+        }
+        output << "};" << endl << endl;
+    }
+	
 }
 
 inline void ShaderBuilder::WriteStructs()
@@ -939,7 +982,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 
 		if (token->type == CFTOKEN_NAME) {
             initializerType = nil;
-			if (!WriteTypeToken(token) && !WriteIntrinsic(token) && !WriteCompilerVariable(token) && 
+			if (!WriteTypeToken(token) && !WriteIntrinsic(token) && !WriteCompilerVariable(token) &&
 			    (dot || !WriteConstantVariable(token))) {
 				if (dot)
 					dot = false;
@@ -1012,7 +1055,9 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	unique(info.useSamplers.begin(), info.useSamplers.end());
 	functionInfo.emplace(funcName, info);
 
-	output << func->return_type << ' ' << funcName << '(';
+    if (isVertexShader() && strcmp(func->return_type, "VertInOut") == 0) output << "VertexOut " << funcName << '(';
+        else output << func->return_type << ' ' << funcName << '(';
+	
 
 	bool isFirst = true;
 	for (struct shader_var *param = func->params.array;
@@ -1021,7 +1066,14 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 		if (!isFirst)
 			output << ", ";
 
-		WriteVariable(param);
+        if (isVertexShader() && strcmp(func->return_type, "VertInOut") == 0) {
+            if (param->var_type == SHADER_VAR_CONST)
+                output << "constant ";
+
+            output << "VertexIn " << param->name;
+        } else {
+            WriteVariable(param);
+        }
 
 		if (isMain) {
 			if (!isFirst)
