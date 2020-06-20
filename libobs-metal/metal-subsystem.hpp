@@ -209,8 +209,8 @@ struct gs_vertex_shader : gs_shader {
    bool hasTangents;
    uint32_t texUnits;
 
-    gs_shader_param *world;
-    gs_shader_param *viewProjection;
+    gs_shader_param *worldMatrix;
+    gs_shader_param *viewProjectionMatrix;
 
    inline uint32_t NumBuffersExpected() const
    {
@@ -249,6 +249,8 @@ struct gs_device {
     gs_vertex_shader *currentVertexShader;
     gs_pixel_shader *currentPixelShader;
     
+
+    
     // Might be movable to swapchain?
     MTLRenderPassDescriptor *renderPassDescriptor;
     MTLRenderPipelineDescriptor *renderPipelineDescriptor;
@@ -256,6 +258,9 @@ struct gs_device {
     int currentRenderSide;
     gs_zstencil_buffer *currentZStencilBuffer;
     bool pipelineStateChanged;
+    
+    gs_vertex_buffer *lastVertexBuffer = nil;
+    gs_vertex_shader *lastVertexShader = nil;
     
     gs_device(uint32_t adapterIdx);
 };
