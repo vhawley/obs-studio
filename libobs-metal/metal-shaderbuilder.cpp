@@ -882,14 +882,22 @@ inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const c
     output.write(token->str.array, token->str.len);
     
     stringstream buffer;
+    // collect args
     while (token->type != CFTOKEN_NONE) {
         token++;
-        buffer.write(token->str.array, token->str.len);
         
-        if (strref_cmp(&token->str, ")") == 0)
-            break;
-        
-        if (token->type == CFTOKEN_NAME) {
+        if (token->type == CFTOKEN_OTHER) {
+            if (strref_cmp(&token->str, "(") == 0) {
+                output.write(token->str.array, token->str.len);
+                WriteFunctionContent(token, ")");
+            } else if (strref_cmp(&token->str, ")") == 0) {
+                break;
+            } else if (strref_cmp(&token->str, ".") == 0) {
+                output.write(token->str.array, token->str.len);
+            } else {
+                output.write(token->str.array, token->str.len);
+            }
+        } else if (token->type == CFTOKEN_NAME) {
             shader_var *var = GetFunctionParam(token);
             if (var == nil)
                 GetVariable(token);
@@ -898,10 +906,12 @@ inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const c
                 // try to get primitive type first
                 const char *primitive = GetType(var->type);
                 while (primitive == nil) {
+                    buffer.write(token->str.array, token->str.len);
+
                     // attempt to get struct type if not primitive
                     shader_struct *struct_var = GetStruct(var->type);
                     if (struct_var == nil)
-                        throw "Unknown data type";
+                        break;
                     
                     // get next token and write to buffer
                     token++;
@@ -919,6 +929,7 @@ inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const c
                     primitive = GetType(dataType);
                 }
                 
+                
                 // should have our primitive data type now
                 string scalarSourceType = GetScalarTypeFromVectorType(primitive);
                 string scalarDestinationType = GetScalarTypeFromVectorType(initializerType);
@@ -931,13 +942,14 @@ inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const c
                     output << buffer.str();
                     buffer.str("");
                 }
+            } else {
+                WriteFunctionContent(token, ")");
+                break;
             }
         } else {
-            output << buffer.str();
-            buffer.str("");
+            output.write(token->str.array, token->str.len);
         }
     }
-    
 }
 
 inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const char *end)
