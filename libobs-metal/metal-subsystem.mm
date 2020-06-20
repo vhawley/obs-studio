@@ -638,18 +638,269 @@ void device_stage_texture(gs_device_t *device, gs_stagesurf_t *dst,
 
 void device_begin_frame(gs_device_t *device)
 {
-    
+    // Do nothing on metal
+    UNUSED_PARAMETER(device);
 }
 
 void device_begin_scene(gs_device_t *device)
 {
+    // clear textures
+    memset(device->currentTextures, 0, sizeof(device->currentTextures));
     
+    device->commandBuffer = [device->commandQueue commandBuffer];
+}
+
+
+void gs_device::SetClear()
+{
+   ClearState state = clearStates.top().second;
+
+   if (state.flags & GS_CLEAR_COLOR) {
+       MTLRenderPassColorAttachmentDescriptor *colorAttachment =
+               renderPassDescriptor.colorAttachments[0];
+       colorAttachment.loadAction = MTLLoadActionClear;
+       colorAttachment.clearColor = MTLClearColorMake(
+               state.color.x, state.color.y, state.color.z,
+               state.color.w);
+   } else
+       renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+
+   if (state.flags & GS_CLEAR_DEPTH) {
+       MTLRenderPassDepthAttachmentDescriptor *depthAttachment =
+               renderPassDescriptor.depthAttachment;
+       depthAttachment.loadAction = MTLLoadActionClear;
+       depthAttachment.clearDepth = state.depth;
+   } else
+       renderPassDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
+
+   if (state.flags & GS_CLEAR_STENCIL) {
+       MTLRenderPassStencilAttachmentDescriptor *stencilAttachment =
+               renderPassDescriptor.stencilAttachment;
+       stencilAttachment.loadAction   = MTLLoadActionClear;
+       stencilAttachment.clearStencil = state.stencil;
+   } else
+       renderPassDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
+
+   clearStates.pop();
+   if (clearStates.size())
+       preserveClearTarget = clearStates.top().first;
+   else
+       preserveClearTarget = nullptr;
+}
+
+ void gs_device::UploadVertexBuffer(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   vector<id<MTLBuffer>> buffers;
+   vector<NSUInteger> offsets;
+
+   if (currentVertexBuffer && currentVertexShader) {
+       currentVertexBuffer->MakeBufferList(currentVertexShader, buffers);
+       if (currentVertexBuffer->isDynamic)
+           currentVertexBuffer->Release();
+   } else {
+       size_t buffersToClear = currentVertexShader ?
+               currentVertexShader->NumBuffersExpected() : 0;
+       buffers.resize(buffersToClear);
+   }
+
+   offsets.resize(buffers.size());
+
+   [commandEncoder setVertexBuffers:buffers.data()
+           offsets:offsets.data()
+           withRange:NSMakeRange(0, buffers.size())];
+
+   lastVertexBuffer = currentVertexBuffer;
+   lastVertexShader = currentVertexShader;
+}
+
+ void gs_device::UploadTextures(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
+       if (currentTextures[i] == nil)
+           break;
+
+       [commandEncoder setFragmentTexture:currentTextures[i]->metalTexture atIndex:i];
+   }
+}
+
+ void gs_device::UploadSamplers(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
+       gs_sampler_state *sampler = currentSamplers[i];
+       if (sampler == nullptr)
+           break;
+
+       [commandEncoder setFragmentSamplerState:sampler->samplerState
+               atIndex:i];
+   }
+}
+
+ void gs_device::LoadRasterState(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   [commandEncoder setViewport:rasterState.mtlViewport];
+   /* use CCW to convert to a right-handed coordinate system */
+   [commandEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+   [commandEncoder setCullMode:rasterState.mtlCullMode];
+   if (rasterState.scissorEnabled)
+       [commandEncoder setScissorRect:rasterState.mtlScissorRect];
+}
+
+ void gs_device::LoadZStencilState(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   if (zstencilState.depthEnabled) {
+       if (depthStencilState == nil) {
+           depthStencilState = [metalDevice newDepthStencilStateWithDescriptor: zstencilState.dsd];
+       }
+       [commandEncoder setDepthStencilState:depthStencilState];
+   }
+}
+
+ void gs_device::UpdateViewProjMatrix()
+{
+   gs_matrix_get(&currentViewMatrix);
+
+   /* negate Z col of the view matrix for right-handed coordinate system */
+   currentViewMatrix.x.z = -currentViewMatrix.x.z;
+   currentViewMatrix.y.z = -currentViewMatrix.y.z;
+   currentViewMatrix.z.z = -currentViewMatrix.z.z;
+   currentViewMatrix.t.z = -currentViewMatrix.t.z;
+
+   matrix4_mul(&currentViewProjectionMatrix, &currentViewMatrix, &currentProjectionMatrix);
+   matrix4_transpose(&currentViewProjectionMatrix, &currentViewProjectionMatrix);
+
+   if (currentVertexShader->viewProjectionMatrix)
+       gs_shader_set_matrix4(currentVertexShader->viewProjectionMatrix, &currentViewProjectionMatrix);
+}
+
+ void gs_device::DrawPrimitives(id<MTLRenderCommandEncoder> commandEncoder,
+       gs_draw_mode drawMode, uint32_t startVert, uint32_t numVerts)
+{
+   MTLPrimitiveType primitive = ConvertGSTopology(drawMode);
+   if (currentIndexBuffer) {
+       if (numVerts == 0)
+           numVerts = static_cast<uint32_t>(currentIndexBuffer->num);
+       [commandEncoder drawIndexedPrimitives:primitive
+               indexCount:numVerts
+               indexType:currentIndexBuffer->metalIndexType
+               indexBuffer:currentIndexBuffer->metalIndexBuffer
+               indexBufferOffset:0];
+       if (currentIndexBuffer->isDynamic)
+           currentIndexBuffer->metalIndexBuffer = nil;
+   } else {
+       if (numVerts == 0)
+           numVerts = static_cast<uint32_t>(
+                   currentVertexBuffer->vbData->num);
+       [commandEncoder drawPrimitives:primitive
+               vertexStart:startVert vertexCount:numVerts];
+   }
+}
+
+void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVerts)
+{
+    try {
+        if (!currentVertexShader)
+            throw "No vertex shader specified";
+        if (!currentPixelShader)
+            throw "No pixel shader specified";
+        
+        if (!currentVertexBuffer)
+            throw "No vertex buffer specified";
+        
+        if (!currentRenderTarget)
+            throw "No render target to render to";
+        
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_draw (Metal): %s", error);
+        return;
+    }
+    
+    if (renderPipelineState == nil || pipelineStateChanged) {
+        NSError *error = nil;
+        renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
+                         renderPipelineDescriptor error:&error];
+        
+        if (renderPipelineState == nil) {
+            blog(LOG_ERROR, "device_draw (Metal): %s",
+                 error.localizedDescription.UTF8String);
+            return;
+        }
+        
+        pipelineStateChanged = false;
+    }
+    
+    if (preserveClearTarget != currentRenderTarget) {
+        renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionLoad;
+        renderPassDescriptor.depthAttachment.loadAction = MTLLoadActionLoad;
+        renderPassDescriptor.stencilAttachment.loadAction = MTLLoadActionLoad;
+    } else
+        SetClear();
+    
+    id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+    [commandEncoder setRenderPipelineState:renderPipelineState];
+    
+    try {
+        gs_effect_t *effect = gs_get_effect();
+        if (effect)
+            gs_effect_update_params(effect);
+        
+        LoadRasterState(commandEncoder);
+        LoadZStencilState(commandEncoder);
+        UpdateViewProjMatrix();
+        currentVertexShader->UploadParams(commandEncoder);
+        currentPixelShader->UploadParams(commandEncoder);
+        UploadVertexBuffer(commandEncoder);
+        UploadTextures(commandEncoder);
+        UploadSamplers(commandEncoder);
+        DrawPrimitives(commandEncoder, drawMode, startVert, numVerts);
+        
+    } catch (const char *error) {
+        blog(LOG_ERROR, "device_draw (Metal): %s", error);
+    }
+    
+    [commandEncoder endEncoding];
 }
 
 void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
                  uint32_t start_vert, uint32_t num_verts)
 {
-    
+    /*
+      * Do not remove autorelease pool.
+      * Add MTLRenderCommandEncoder to autorelease pool.
+      */
+     @autoreleasepool {
+         device->Draw(draw_mode, start_vert, num_verts);
+     }
+}
+
+inline id<MTLBuffer> gs_device::CreateBuffer(void *data, size_t length)
+{
+   length = (length + 15) & ~15;
+
+   MTLResourceOptions options = MTLResourceCPUCacheModeWriteCombined |
+           MTLResourceStorageModeShared;
+   id<MTLBuffer> buffer = [metalDevice newBufferWithBytes:data
+           length:length options:options];
+   if (buffer == nil)
+       throw "Failed to create buffer";
+   return buffer;
+}
+
+id<MTLBuffer> gs_device::GetBuffer(void *data, size_t length)
+{
+   lock_guard<mutex> lock(mutexObj);
+   auto target = find_if(unusedBufferPool.begin(), unusedBufferPool.end(),
+       [length](id<MTLBuffer> b) { return b.length >= length; });
+   if (target == unusedBufferPool.end()) {
+       id<MTLBuffer> newBuffer = CreateBuffer(data, length);
+       curBufferPool.push_back(newBuffer);
+       return newBuffer;
+   }
+
+   id<MTLBuffer> targetBuffer = *target;
+   unusedBufferPool.erase(target);
+   curBufferPool.push_back(targetBuffer);
+   memcpy(targetBuffer.contents, data, length);
+   return targetBuffer;
 }
 
 void device_end_scene(gs_device_t *device)
@@ -976,7 +1227,7 @@ void gs_vertexbuffer_flush_direct(gs_vertbuffer_t *vertbuffer,
 struct gs_vb_data *gs_vertexbuffer_get_data(const gs_vertbuffer_t *vertbuffer)
 {
     assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
-    return vertbuffer->data;
+    return vertbuffer->vbData.get();
 }
 
 void gs_indexbuffer_destroy(gs_indexbuffer_t *indexbuffer)

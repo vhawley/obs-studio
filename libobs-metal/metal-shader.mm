@@ -139,6 +139,54 @@ void gs_shader::Compile()
     metalFunction = func;
 }
 
+inline void gs_shader::UpdateParam(uint8_t *data, gs_shader_param &param)
+{
+   if (param.type != GS_SHADER_PARAM_TEXTURE) {
+       if (!param.curValue.size())
+           throw "Not all shader parameters were set";
+
+       if (param.changed) {
+           memcpy(data + param.pos, param.curValue.data(),
+                   param.curValue.size());
+           param.changed = false;
+       }
+
+   } else if (param.curValue.size() == sizeof(gs_texture_t*)) {
+       gs_texture_t *tex;
+       memcpy(&tex, param.curValue.data(), sizeof(gs_texture_t*));
+       device_load_texture(device, tex, param.textureID);
+
+       if (param.nextSampler) {
+           device_load_samplerstate(device, param.nextSampler,
+                   param.textureID);
+           param.nextSampler = nullptr;
+       }
+   }
+}
+
+void gs_shader::UploadParams(id<MTLRenderCommandEncoder> commandEncoder)
+{
+   uint8_t *ptr = data.data();
+
+   for (size_t i = 0; i < params.size(); i++)
+       UpdateParam(ptr, params[i]);
+
+   if (!constantSize)
+       return;
+
+   id<MTLBuffer> cnt = device->GetBuffer(ptr, data.size());
+#if _DEBUG
+   cnt.label = @"constants";
+#endif
+
+   if (shaderType == GS_SHADER_VERTEX)
+       [commandEncoder setVertexBuffer:cnt offset:0 atIndex:30];
+   else if (shaderType == GS_SHADER_PIXEL)
+       [commandEncoder setFragmentBuffer:cnt offset:0 atIndex:30];
+   else
+       throw "This is unknown shader type";
+}
+
 void gs_shader_destroy(gs_shader_t *shader)
 {
     assert(shader != nil);
