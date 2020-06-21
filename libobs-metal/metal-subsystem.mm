@@ -147,7 +147,7 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
     gs_texture *texture;
     
     try {
-        texture = new gs_texture(device, width, height, color_format, levels, data, flags, GS_TEXTURE_2D);
+        texture = new gs_texture(device, width, height, 0, color_format, levels, data, flags, GS_TEXTURE_2D);
     } catch (const char *error) {
         blog(LOG_ERROR, "device_texture_create (Metal): %s", error);
     }
@@ -162,7 +162,7 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
     gs_texture *texture;
     
     try {
-        texture = new gs_texture(device, size, size, color_format, levels, data, flags, GS_TEXTURE_CUBE);
+        texture = new gs_texture(device, size, size, 0, color_format, levels, data, flags, GS_TEXTURE_CUBE);
     } catch (const char *error) {
         blog(LOG_ERROR, "device_cubetexture_create (Metal): %s", error);
     }
@@ -178,7 +178,7 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
     gs_texture *texture;
     
     try {
-        texture = new gs_texture(device, width, height, color_format, levels, (const uint8_t **)data, flags, GS_TEXTURE_3D);
+        texture = new gs_texture(device, width, height, depth, color_format, levels, (const uint8_t **)data, flags, GS_TEXTURE_3D);
     } catch (const char *error) {
         blog(LOG_ERROR, "device_voltexture_create (Metal): %s", error);
     }
@@ -644,10 +644,11 @@ void device_begin_frame(gs_device_t *device)
 
 void device_begin_scene(gs_device_t *device)
 {
-    // clear textures
-    memset(device->currentTextures, 0, sizeof(device->currentTextures));
-    
-    device->commandBuffer = [device->commandQueue commandBuffer];
+//    // clear textures
+//    memset(device->currentTextures, 0, sizeof(device->currentTextures));
+//
+//    device->commandBuffer = [device->commandQueue commandBuffer];
+//    blog(LOG_INFO, "ok...");
 }
 
 
@@ -903,9 +904,27 @@ id<MTLBuffer> gs_device::GetBuffer(void *data, size_t length)
    return targetBuffer;
 }
 
+void gs_device::PushResources()
+{
+   lock_guard<mutex> lock(mutexObj);
+   bufferPools.push(curBufferPool);
+   curBufferPool.clear();
+}
+
+ void gs_device::ReleaseResources()
+{
+   lock_guard<mutex> lock(mutexObj);
+   auto& pool = bufferPools.front();
+   unusedBufferPool.insert(unusedBufferPool.end(),
+           pool.begin(), pool.end());
+   bufferPools.pop();
+}
+
+
 void device_end_scene(gs_device_t *device)
 {
-    
+    /* does nothing in Metal */
+     UNUSED_PARAMETER(device);
 }
 
 void device_load_swapchain(gs_device_t *device,
@@ -932,6 +951,7 @@ void device_load_swapchain(gs_device_t *device,
     device->renderPassDescriptor.stencilAttachment.texture = nil;
     
     device->pipelineStateChanged = true;
+    blog(LOG_INFO, "device_load_swapchain (Metal): Swapchain loaded");
 }
 
 void device_clear(gs_device_t *device, uint32_t clear_flags,
@@ -943,7 +963,25 @@ void device_clear(gs_device_t *device, uint32_t clear_flags,
 
 void device_present(gs_device_t *device)
 {
-    
+    if (device->currentSwapChain) {
+         [device->commandBuffer presentDrawable:
+                 device->currentSwapChain->nextDrawable];
+     } else {
+         blog(LOG_WARNING, "device_present (Metal): No active swap");
+     }
+
+      device->PushResources();
+
+      [device->commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buf) {
+         device->ReleaseResources();
+
+          UNUSED_PARAMETER(buf);
+     }];
+     [device->commandBuffer commit];
+     device->commandBuffer = nil;
+
+      if (device->currentSwapChain)
+         device->currentSwapChain->NextTarget();
 }
 
 void device_flush(gs_device_t *device)
@@ -1215,13 +1253,29 @@ void gs_vertexbuffer_destroy(gs_vertbuffer_t *vertbuffer)
 
 void gs_vertexbuffer_flush(gs_vertbuffer_t *vertbuffer)
 {
-    
+    assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
+
+       if (!vertbuffer->isDynamic) {
+          blog(LOG_ERROR, "gs_vertexbuffer_flush: vertex buffer is not "
+                          "dynamic");
+          return;
+      }
+
+       vertbuffer->PrepareBuffers();
 }
 
 void gs_vertexbuffer_flush_direct(gs_vertbuffer_t *vertbuffer,
                                   const struct gs_vb_data *data)
 {
-    
+    assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
+
+      if (!vertbuffer->isDynamic) {
+         blog(LOG_ERROR, "gs_vertexbuffer_flush_direct: vertex buffer is not "
+                         "dynamic");
+         return;
+     }
+    vertbuffer->vbData.reset((gs_vb_data *)data);
+    vertbuffer->PrepareBuffers();
 }
 
 struct gs_vb_data *gs_vertexbuffer_get_data(const gs_vertbuffer_t *vertbuffer)
@@ -1237,7 +1291,7 @@ void gs_indexbuffer_destroy(gs_indexbuffer_t *indexbuffer)
 
 void gs_indexbuffer_flush(gs_indexbuffer_t *indexbuffer)
 {
-    
+
 }
 
 void gs_indexbuffer_flush_direct(gs_indexbuffer_t *indexbuffer,

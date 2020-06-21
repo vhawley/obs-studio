@@ -59,6 +59,8 @@ struct gs_swap_chain : gs_object {
     NSView *view;
     CAMetalLayer *metalLayer;
     gs_texture *nextTarget;
+    id<CAMetalDrawable> nextDrawable;
+    uint32_t numBuffers;
     
     gs_texture *CurrentTarget();
     gs_texture *NextTarget();
@@ -176,6 +178,7 @@ struct gs_texture : gs_object {
     // Data from application
     uint32_t width;
     uint32_t height;
+    uint32_t depth;
     uint32_t bytes;
     gs_color_format colorFormat;
     uint32_t levels;
@@ -206,7 +209,7 @@ struct gs_texture : gs_object {
     void RebuildTexture();
     
     // Init from data
-    gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type);
+    gs_texture(gs_device_t *device, uint32_t width, uint32_t height, uint32_t depth, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type texture_type);
     
     // Init from existing MTLTexture
     gs_texture(gs_device_t *device, id<MTLTexture> texture);
@@ -214,7 +217,7 @@ struct gs_texture : gs_object {
 
 struct gs_vertex_buffer : gs_object {
     const bool                 isDynamic;
-    const unique_ptr<gs_vb_data, decltype(&gs_vbdata_destroy)> vbData;
+    unique_ptr<gs_vb_data, decltype(&gs_vbdata_destroy)> vbData;
     
     id<MTLBuffer>              vertexBuffer;
     id<MTLBuffer>              normalBuffer;

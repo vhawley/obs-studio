@@ -1,10 +1,11 @@
 #include "metal-subsystem.hpp"
 
 // Init from data
-gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, gs_color_format colorFormat, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type textureType)
+gs_texture::gs_texture(gs_device_t *device, uint32_t width, uint32_t height, uint32_t depth, gs_color_format colorFormat, uint32_t levels, const uint8_t **data, uint32_t flags, gs_texture_type textureType)
 : gs_object(device, GS_TEXTURE),
 width(width),
 height(height),
+depth(depth),
 colorFormat(colorFormat),
 levels(levels),
 isRenderTarget((flags & GS_RENDER_TARGET) != 0),
