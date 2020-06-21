@@ -25,7 +25,8 @@ gs_texture *gs_swap_chain::CurrentTarget()
 
 gs_texture *gs_swap_chain::NextTarget()
 {
-    if (metalLayer.nextDrawable != nil)
+    nextDrawable = [metalLayer nextDrawable];
+    if (nextDrawable != nil)
         nextTarget = new gs_texture(device, [[metalLayer nextDrawable] texture]);
     
     return nextTarget;

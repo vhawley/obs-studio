@@ -55,7 +55,13 @@ struct gs_swap_chain : gs_object {
     gs_texture *NextTarget();
     
     void Resize(uint32_t cx, uint32_t cy);
-    void Rebuild();
+    
+    inline void Release()
+     {
+         nextTarget = nil;
+         nextDrawable = nil;
+     }
+     void Rebuild();
     
     gs_swap_chain(gs_device *device, const gs_init_data *data);
 };
@@ -615,4 +621,100 @@ static inline MTLScissorRect ConvertGSRectToMTLScissorRect(gs_rect rect)
    ret.width  = rect.cx;
    ret.height = rect.cy;
    return ret;
+}
+
+static inline MTLSamplerAddressMode ConvertGSAddressMode(gs_address_mode mode)
+{
+   switch (mode) {
+   case GS_ADDRESS_WRAP:
+       return MTLSamplerAddressModeRepeat;
+   case GS_ADDRESS_CLAMP:
+       return MTLSamplerAddressModeClampToEdge;
+   case GS_ADDRESS_MIRROR:
+       return MTLSamplerAddressModeMirrorRepeat;
+   case GS_ADDRESS_BORDER:
+       return MTLSamplerAddressModeClampToBorderColor;
+   case GS_ADDRESS_MIRRORONCE:
+       return MTLSamplerAddressModeMirrorClampToEdge;
+   }
+
+   return MTLSamplerAddressModeRepeat;
+}
+
+ static inline MTLSamplerMinMagFilter ConvertGSMinFilter(gs_sample_filter filter)
+{
+   switch (filter) {
+   case GS_FILTER_POINT:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_LINEAR:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_POINT_MAG_MIP_LINEAR:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_LINEAR_MAG_MIP_POINT:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_ANISOTROPIC:
+       return MTLSamplerMinMagFilterLinear;
+   }
+
+   return MTLSamplerMinMagFilterNearest;
+}
+
+ static inline MTLSamplerMinMagFilter ConvertGSMagFilter(gs_sample_filter filter)
+{
+   switch (filter) {
+   case GS_FILTER_POINT:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_LINEAR:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_POINT_MAG_MIP_LINEAR:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_MIN_LINEAR_MAG_MIP_POINT:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMinMagFilterNearest;
+   case GS_FILTER_MIN_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMinMagFilterLinear;
+   case GS_FILTER_ANISOTROPIC:
+       return MTLSamplerMinMagFilterLinear;
+   }
+
+   return MTLSamplerMinMagFilterNearest;
+}
+
+ static inline MTLSamplerMipFilter ConvertGSMipFilter(gs_sample_filter filter)
+{
+   switch (filter) {
+   case GS_FILTER_POINT:
+       return MTLSamplerMipFilterNearest;
+   case GS_FILTER_LINEAR:
+       return MTLSamplerMipFilterLinear;
+   case GS_FILTER_MIN_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMipFilterLinear;
+   case GS_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMipFilterNearest;
+   case GS_FILTER_MIN_POINT_MAG_MIP_LINEAR:
+       return MTLSamplerMipFilterLinear;
+   case GS_FILTER_MIN_LINEAR_MAG_MIP_POINT:
+       return MTLSamplerMipFilterNearest;
+   case GS_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR:
+       return MTLSamplerMipFilterLinear;
+   case GS_FILTER_MIN_MAG_LINEAR_MIP_POINT:
+       return MTLSamplerMipFilterNearest;
+   case GS_FILTER_ANISOTROPIC:
+       return MTLSamplerMipFilterLinear;
+   }
+
+   return MTLSamplerMipFilterNearest;
 }

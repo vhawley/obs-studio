@@ -644,11 +644,10 @@ void device_begin_frame(gs_device_t *device)
 
 void device_begin_scene(gs_device_t *device)
 {
-    //    // clear textures
-    //    memset(device->currentTextures, 0, sizeof(device->currentTextures));
-    //
-    //    device->commandBuffer = [device->commandQueue commandBuffer];
-    //    blog(LOG_INFO, "ok...");
+        // clear textures
+        memset(device->currentTextures, 0, sizeof(device->currentTextures));
+    
+        device->commandBuffer = [device->commandQueue commandBuffer];
 }
 
 
@@ -728,7 +727,7 @@ void gs_device::UploadSamplers(id<MTLRenderCommandEncoder> commandEncoder)
 {
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
         gs_sampler_state *sampler = currentSamplers[i];
-        if (sampler == nullptr)
+        if (sampler == nil)
             break;
         
         [commandEncoder setFragmentSamplerState:sampler->samplerState
@@ -836,29 +835,31 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
     } else
         SetClear();
     
-    id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-    [commandEncoder setRenderPipelineState:renderPipelineState];
-    
-    try {
-        gs_effect_t *effect = gs_get_effect();
-        if (effect)
-            gs_effect_update_params(effect);
+    @autoreleasepool {
+        id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+        [commandEncoder setRenderPipelineState:renderPipelineState];
         
-        LoadRasterState(commandEncoder);
-        LoadZStencilState(commandEncoder);
-        UpdateViewProjMatrix();
-        currentVertexShader->UploadParams(commandEncoder);
-        currentPixelShader->UploadParams(commandEncoder);
-        UploadVertexBuffer(commandEncoder);
-        UploadTextures(commandEncoder);
-        UploadSamplers(commandEncoder);
-        DrawPrimitives(commandEncoder, drawMode, startVert, numVerts);
+        try {
+            gs_effect_t *effect = gs_get_effect();
+            if (effect)
+                gs_effect_update_params(effect);
+            
+            LoadRasterState(commandEncoder);
+            LoadZStencilState(commandEncoder);
+            UpdateViewProjMatrix();
+            currentVertexShader->UploadParams(commandEncoder);
+            currentPixelShader->UploadParams(commandEncoder);
+            UploadVertexBuffer(commandEncoder);
+            UploadTextures(commandEncoder);
+            UploadSamplers(commandEncoder);
+            DrawPrimitives(commandEncoder, drawMode, startVert, numVerts);
+            
+        } catch (const char *error) {
+            blog(LOG_ERROR, "device_draw (Metal): %s", error);
+        }
         
-    } catch (const char *error) {
-        blog(LOG_ERROR, "device_draw (Metal): %s", error);
+        [commandEncoder endEncoding];
     }
-    
-    [commandEncoder endEncoding];
 }
 
 void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
