@@ -20,19 +20,6 @@
 
 using namespace std;
 
-static inline MTLPrimitiveType ConvertGSTopology(gs_draw_mode mode)
-{
-   switch (mode) {
-   case GS_POINTS:    return MTLPrimitiveTypePoint;
-   case GS_LINES:     return MTLPrimitiveTypeLine;
-   case GS_LINESTRIP: return MTLPrimitiveTypeLineStrip;
-   case GS_TRIS:      return MTLPrimitiveTypeTriangle;
-   case GS_TRISTRIP:  return MTLPrimitiveTypeTriangleStrip;
-   }
-
-   return MTLPrimitiveTypePoint;
-}
-
 enum gs_object_type {
     GS_VERTEX_BUFFER,
     GS_INDEX_BUFFER,
@@ -41,7 +28,9 @@ enum gs_object_type {
     GS_STAGE_SURFACE,
     GS_SAMPLER_STATE,
     GS_SHADER,
-    GS_SWAP_CHAIN
+    GS_SWAP_CHAIN,
+    GS_TIMER,
+    GS_TIMER_RANGE
 };
 
 struct gs_object {
@@ -151,27 +140,27 @@ struct gs_pixel_shader : gs_shader {
 };
 
 struct gs_vertex_shader : gs_shader {
-   MTLVertexDescriptor *vertexDescriptor;
-
-   bool hasNormals;
-   bool hasColors;
-   bool hasTangents;
-   uint32_t texUnits;
-
+    MTLVertexDescriptor *vertexDescriptor;
+    
+    bool hasNormals;
+    bool hasColors;
+    bool hasTangents;
+    uint32_t texUnits;
+    
     gs_shader_param *worldMatrix;
     gs_shader_param *viewProjectionMatrix;
-
-   inline uint32_t NumBuffersExpected() const
-   {
-       uint32_t count = texUnits + 1;
-       if (hasNormals) count++;
-       if (hasColors) count++;
-       if (hasTangents) count++;
-
-       return count;
-   }
-
-   gs_vertex_shader(gs_device_t *device, const char *shader, const char *file);
+    
+    inline uint32_t NumBuffersExpected() const
+    {
+        uint32_t count = texUnits + 1;
+        if (hasNormals) count++;
+        if (hasColors) count++;
+        if (hasTangents) count++;
+        
+        return count;
+    }
+    
+    gs_vertex_shader(gs_device_t *device, const char *shader, const char *file);
 };
 
 struct gs_texture : gs_object {
@@ -237,13 +226,13 @@ struct gs_vertex_buffer : gs_object {
     
     // Mem management
     inline void Release()
-     {
-         vertexBuffer = nil;
-         normalBuffer = nil;
-         colorBuffer  = nil;
-         tangentBuffer = nil;
-         uvBuffers.clear();
-     }
+    {
+        vertexBuffer = nil;
+        normalBuffer = nil;
+        colorBuffer  = nil;
+        tangentBuffer = nil;
+        uvBuffers.clear();
+    }
     
     gs_vertex_buffer(gs_device_t *device, struct gs_vb_data *data, uint32_t flags);
 };
@@ -293,126 +282,140 @@ struct gs_stage_surface : gs_object {
 };
 
 struct ShaderError {
-   const string error;
-
-   inline ShaderError(NSError *error)
-       : error ([[error localizedDescription] UTF8String])
-   {
-   }
+    const string error;
+    
+    inline ShaderError(NSError *error)
+    : error ([[error localizedDescription] UTF8String])
+    {
+    }
 };
 
 struct ClearState {
-   uint32_t    flags;
-   struct vec4 color;
-   float       depth;
-   uint8_t     stencil;
-
-   inline ClearState()
-       : flags   (0),
-         color   ({}),
-         depth   (0.0f),
-         stencil (0)
-   {
-   }
+    uint32_t    flags;
+    struct vec4 color;
+    float       depth;
+    uint8_t     stencil;
+    
+    inline ClearState()
+    : flags   (0),
+    color   ({}),
+    depth   (0.0f),
+    stencil (0)
+    {
+    }
 };
 
 struct BlendState {
-   bool          blendEnabled;
-   gs_blend_type srcFactorC;
-   gs_blend_type destFactorC;
-   gs_blend_type srcFactorA;
-   gs_blend_type destFactorA;
-
-   bool          redEnabled;
-   bool          greenEnabled;
-   bool          blueEnabled;
-   bool          alphaEnabled;
-
-   inline BlendState()
-       : blendEnabled (true),
-         srcFactorC   (GS_BLEND_SRCALPHA),
-         destFactorC  (GS_BLEND_INVSRCALPHA),
-         srcFactorA   (GS_BLEND_ONE),
-         destFactorA  (GS_BLEND_ONE),
-         redEnabled   (true),
-         greenEnabled (true),
-         blueEnabled  (true),
-         alphaEnabled (true)
-   {
-   }
-
-   inline BlendState(const BlendState &state)
-   {
-       memcpy(this, &state, sizeof(BlendState));
-   }
+    bool          blendEnabled;
+    gs_blend_type srcFactorC;
+    gs_blend_type destFactorC;
+    gs_blend_type srcFactorA;
+    gs_blend_type destFactorA;
+    
+    bool          redEnabled;
+    bool          greenEnabled;
+    bool          blueEnabled;
+    bool          alphaEnabled;
+    
+    inline BlendState()
+    : blendEnabled (true),
+    srcFactorC   (GS_BLEND_SRCALPHA),
+    destFactorC  (GS_BLEND_INVSRCALPHA),
+    srcFactorA   (GS_BLEND_ONE),
+    destFactorA  (GS_BLEND_ONE),
+    redEnabled   (true),
+    greenEnabled (true),
+    blueEnabled  (true),
+    alphaEnabled (true)
+    {
+    }
+    
+    inline BlendState(const BlendState &state)
+    {
+        memcpy(this, &state, sizeof(BlendState));
+    }
 };
 
- struct RasterState {
-   gs_rect        viewport;
-   gs_cull_mode   cullMode;
-   bool           scissorEnabled;
-   gs_rect        scissorRect;
-
-   MTLViewport    mtlViewport;
-   MTLCullMode    mtlCullMode;
-   MTLScissorRect mtlScissorRect;
-
-   inline RasterState()
-       : viewport       (),
-         cullMode       (GS_BACK),
-         scissorEnabled (false),
-         scissorRect    (),
-         mtlCullMode    (MTLCullModeBack)
-   {
-   }
-
-   inline RasterState(const RasterState &state)
-   {
-       memcpy(this, &state, sizeof(RasterState));
-   }
+struct RasterState {
+    gs_rect        viewport;
+    gs_cull_mode   cullMode;
+    bool           scissorEnabled;
+    gs_rect        scissorRect;
+    
+    MTLViewport    mtlViewport;
+    MTLCullMode    mtlCullMode;
+    MTLScissorRect mtlScissorRect;
+    
+    inline RasterState()
+    : viewport       (),
+    cullMode       (GS_BACK),
+    scissorEnabled (false),
+    scissorRect    (),
+    mtlCullMode    (MTLCullModeBack)
+    {
+    }
+    
+    inline RasterState(const RasterState &state)
+    {
+        memcpy(this, &state, sizeof(RasterState));
+    }
 };
 
- struct StencilSide {
-   gs_depth_test test;
-   gs_stencil_op_type fail;
-   gs_stencil_op_type zfail;
-   gs_stencil_op_type zpass;
-
-   inline StencilSide()
-       : test  (GS_ALWAYS),
-         fail  (GS_KEEP),
-         zfail (GS_KEEP),
-         zpass (GS_KEEP)
-   {
-   }
+struct StencilSide {
+    gs_depth_test test;
+    gs_stencil_op_type fail;
+    gs_stencil_op_type zfail;
+    gs_stencil_op_type zpass;
+    
+    inline StencilSide()
+    : test  (GS_ALWAYS),
+    fail  (GS_KEEP),
+    zfail (GS_KEEP),
+    zpass (GS_KEEP)
+    {
+    }
 };
 
- struct ZStencilState {
-   bool          depthEnabled;
-   bool          depthWriteEnabled;
-   gs_depth_test depthFunc;
+struct ZStencilState {
+    bool          depthEnabled;
+    bool          depthWriteEnabled;
+    gs_depth_test depthFunc;
+    
+    bool          stencilEnabled;
+    bool          stencilWriteEnabled;
+    StencilSide   stencilFront;
+    StencilSide   stencilBack;
+    
+    MTLDepthStencilDescriptor *dsd;
+    
+    inline ZStencilState()
+    : depthEnabled        (true),
+    depthWriteEnabled   (true),
+    depthFunc           (GS_LESS),
+    stencilEnabled      (false),
+    stencilWriteEnabled (true)
+    {
+        dsd = [[MTLDepthStencilDescriptor alloc] init];
+    }
+    
+    inline ZStencilState(const ZStencilState &state)
+    {
+        memcpy(this, &state, sizeof(ZStencilState));
+    }
+};
 
-   bool          stencilEnabled;
-   bool          stencilWriteEnabled;
-   StencilSide   stencilFront;
-   StencilSide   stencilBack;
+struct gs_timer : gs_object {
+    
+    inline gs_timer(gs_device_t *device) : gs_object(device, GS_TIMER) {
+        
+    }
+};
 
-   MTLDepthStencilDescriptor *dsd;
-
-   inline ZStencilState()
-       : depthEnabled        (true),
-         depthWriteEnabled   (true),
-         depthFunc           (GS_LESS),
-         stencilEnabled      (false),
-         stencilWriteEnabled (true)
-   {
-       dsd = [[MTLDepthStencilDescriptor alloc] init];
-   }
-
-   inline ZStencilState(const ZStencilState &state)
-   {
-       memcpy(this, &state, sizeof(ZStencilState));
-   }
+struct gs_timer_range : gs_object {
+    
+    inline gs_timer_range(gs_device_t *device) : gs_object(device, GS_TIMER_RANGE) {
+        
+    }
 };
 
 struct gs_device {
@@ -431,6 +434,7 @@ struct gs_device {
     gs_vertex_shader *currentVertexShader;
     gs_pixel_shader *currentPixelShader;
     gs_texture *preserveClearTarget;
+    gs_stage_surface *currentStageSurface;
     
     // Might be movable to swapchain?
     MTLRenderPassDescriptor *renderPassDescriptor;
@@ -454,8 +458,9 @@ struct gs_device {
     vector<id<MTLBuffer>>  unusedBufferPool;
     
     matrix4 currentProjectionMatrix;
-     matrix4 currentViewMatrix;
-     matrix4 currentViewProjectionMatrix;
+    matrix4 currentViewMatrix;
+    matrix4 currentViewProjectionMatrix;
+    stack<matrix4> projectionStack;
     
     /* Create Draw Command */
     void SetClear();
@@ -504,4 +509,110 @@ static inline MTLPixelFormat ConvertGSTextureFormat(gs_color_format format)
         case GS_R8G8:        return MTLPixelFormatRG8Unorm;
     }
     return MTLPixelFormatInvalid;
+}
+
+static inline MTLPrimitiveType ConvertGSTopology(gs_draw_mode mode)
+{
+    switch (mode) {
+        case GS_POINTS:    return MTLPrimitiveTypePoint;
+        case GS_LINES:     return MTLPrimitiveTypeLine;
+        case GS_LINESTRIP: return MTLPrimitiveTypeLineStrip;
+        case GS_TRIS:      return MTLPrimitiveTypeTriangle;
+        case GS_TRISTRIP:  return MTLPrimitiveTypeTriangleStrip;
+    }
+    
+    return MTLPrimitiveTypePoint;
+}
+
+static inline MTLCullMode ConvertGSCullMode(gs_cull_mode mode)
+{
+    switch (mode) {
+        case GS_BACK:    return MTLCullModeBack;
+        case GS_FRONT:   return MTLCullModeFront;
+        case GS_NEITHER: return MTLCullModeNone;
+    }
+    
+    return MTLCullModeBack;
+}
+
+static inline MTLBlendFactor ConvertGSBlendType(gs_blend_type type)
+{
+    switch (type) {
+        case GS_BLEND_ZERO:
+            return MTLBlendFactorZero;
+        case GS_BLEND_ONE:
+            return MTLBlendFactorOne;
+        case GS_BLEND_SRCCOLOR:
+            return MTLBlendFactorSourceColor;
+        case GS_BLEND_INVSRCCOLOR:
+            return MTLBlendFactorOneMinusSourceColor;
+        case GS_BLEND_SRCALPHA:
+            return MTLBlendFactorSourceAlpha;
+        case GS_BLEND_INVSRCALPHA:
+            return MTLBlendFactorOneMinusSourceAlpha;
+        case GS_BLEND_DSTCOLOR:
+            return MTLBlendFactorDestinationColor;
+        case GS_BLEND_INVDSTCOLOR:
+            return MTLBlendFactorOneMinusDestinationColor;
+        case GS_BLEND_DSTALPHA:
+            return MTLBlendFactorDestinationAlpha;
+        case GS_BLEND_INVDSTALPHA:
+            return MTLBlendFactorOneMinusDestinationAlpha;
+        case GS_BLEND_SRCALPHASAT:
+            return MTLBlendFactorSourceAlphaSaturated;
+    }
+    
+    return MTLBlendFactorOne;
+}
+
+static inline MTLCompareFunction ConvertGSDepthTest(gs_depth_test test)
+{
+    switch (test) {
+        case GS_NEVER:    return MTLCompareFunctionNever;
+        case GS_LESS:     return MTLCompareFunctionLess;
+        case GS_LEQUAL:   return MTLCompareFunctionLessEqual;
+        case GS_EQUAL:    return MTLCompareFunctionEqual;
+        case GS_GEQUAL:   return MTLCompareFunctionGreaterEqual;
+        case GS_GREATER:  return MTLCompareFunctionGreater;
+        case GS_NOTEQUAL: return MTLCompareFunctionNotEqual;
+        case GS_ALWAYS:   return MTLCompareFunctionAlways;
+    }
+    
+    return MTLCompareFunctionNever;
+}
+
+static inline MTLStencilOperation ConvertGSStencilOp(gs_stencil_op_type op)
+{
+    switch (op) {
+        case GS_KEEP:    return MTLStencilOperationKeep;
+        case GS_ZERO:    return MTLStencilOperationZero;
+        case GS_REPLACE: return MTLStencilOperationReplace;
+        case GS_INCR:    return MTLStencilOperationIncrementWrap;
+        case GS_DECR:    return MTLStencilOperationDecrementWrap;
+        case GS_INVERT:  return MTLStencilOperationInvert;
+    }
+    
+    return MTLStencilOperationKeep;
+}
+
+static inline MTLViewport ConvertGSRectToMTLViewport(gs_rect rect)
+{
+    MTLViewport ret;
+    ret.originX = rect.x;
+    ret.originY = rect.y;
+    ret.width   = rect.cx;
+    ret.height  = rect.cy;
+    ret.znear   = 0.0;
+    ret.zfar    = 1.0;
+    return ret;
+}
+
+static inline MTLScissorRect ConvertGSRectToMTLScissorRect(gs_rect rect)
+{
+   MTLScissorRect ret;
+   ret.x      = rect.x;
+   ret.y      = rect.y;
+   ret.width  = rect.cx;
+   ret.height = rect.cy;
+   return ret;
 }
