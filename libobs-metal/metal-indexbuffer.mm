@@ -51,7 +51,7 @@ void gs_index_buffer::InitBuffer()
     
     metalIndexBuffer = [device->metalDevice newBufferWithBytes:&indices
                                                         length:length options:options];
-    if (metalIndexBuffer == nil)
+    if (metalIndexBuffer == nullptr)
         throw "Failed to create index buffer";
     
 #ifdef _DEBUG

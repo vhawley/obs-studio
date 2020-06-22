@@ -54,7 +54,7 @@
  static inline void PushBuffer(vector<id<MTLBuffer>> &buffers,
        id<MTLBuffer> buffer, const char *name)
 {
-   if (buffer != nil) {
+   if (buffer != nullptr) {
        buffers.push_back(buffer);
    } else {
        blog(LOG_ERROR, "This vertex shader requires a %s buffer",
@@ -92,7 +92,7 @@
 
    id<MTLBuffer> buffer = [device->metalDevice newBufferWithBytes:array
            length:length options:options];
-   if (buffer == nil)
+   if (buffer == nullptr)
        throw "Failed to create buffer";
 
  #ifdef _DEBUG

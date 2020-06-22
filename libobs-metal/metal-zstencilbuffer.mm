@@ -31,7 +31,7 @@ zStencilFormat(format)
 void gs_zstencil_buffer::InitBuffer()
 {
    metalTexture = [device->metalDevice newTextureWithDescriptor:textureDescriptor];
-   if (metalTexture == nil)
+   if (metalTexture == nullptr)
        throw "Failed to create depth stencil texture";
 
  #if _DEBUG

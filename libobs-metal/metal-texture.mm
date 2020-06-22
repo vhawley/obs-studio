@@ -79,7 +79,7 @@ void gs_texture::InitTextureDescriptor() {
 
 void gs_texture::RebuildTextureDescriptor()
 {
-    metalTextureDescriptor = nil;
+    metalTextureDescriptor = nullptr;
     
     InitTextureDescriptor();
 }
@@ -87,17 +87,17 @@ void gs_texture::RebuildTextureDescriptor()
 void gs_texture::InitTexture()
 {
     assert(!isShared);
-    assert(metalTextureDescriptor != nil);
+    assert(metalTextureDescriptor != nullptr);
     
     metalTexture = [device->metalDevice newTextureWithDescriptor:metalTextureDescriptor];
-    if (metalTexture == nil)
+    if (metalTexture == nullptr)
         throw "Failed to create 2D texture";
 }
 
 void gs_texture::RebuildTexture()
 {
     if (isShared) {
-        metalTexture = nil;
+        metalTexture = nullptr;
         return;
     }
     
@@ -106,7 +106,7 @@ void gs_texture::RebuildTexture()
 
 void gs_texture::GenerateMipmap()
 {
-    assert(device->commandBuffer == nil);
+    assert(device->commandBuffer == nullptr);
     
     if (levels == 1)
         return;
@@ -146,7 +146,7 @@ void gs_texture::BackupTexture(const uint8_t **data) {
 
 void gs_texture::UploadTexture()
 {
-    assert(metalTexture != nil);
+    assert(metalTexture != nullptr);
     const uint32_t bytes_per_pixel = gs_get_format_bpp(colorFormat) / 8;
     uint32_t w = width;
     uint32_t h = height;

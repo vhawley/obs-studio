@@ -10,24 +10,24 @@ colorFormat(color_format)
             ConvertGSTextureFormat(colorFormat)
             width:width height:height mipmapped:NO];
     textureDescriptor.storageMode = MTLStorageModeManaged;
-
+    
     uint32_t bytesPerRow = width * gs_get_format_bpp(colorFormat) / 8;
     textureData.resize(height * bytesPerRow);
-
+    
     InitTexture();
 }
 
 void gs_stage_surface::DownloadTexture()
 {
-   MTLRegion from = MTLRegionMake2D(0, 0, width, height);
+    MTLRegion from = MTLRegionMake2D(0, 0, width, height);
     uint32_t bytesPerRow = width * gs_get_format_bpp(colorFormat) / 8;
-   [metalTexture getBytes:textureData.data() bytesPerRow:bytesPerRow
-       fromRegion:from mipmapLevel:0];
+    [metalTexture getBytes:textureData.data() bytesPerRow:bytesPerRow
+                fromRegion:from mipmapLevel:0];
 }
 
- void gs_stage_surface::InitTexture()
+void gs_stage_surface::InitTexture()
 {
-   metalTexture = [device->metalDevice newTextureWithDescriptor:textureDescriptor];
-   if (metalTexture == nil)
-       throw "Failed to create staging surface";
+    metalTexture = [device->metalDevice newTextureWithDescriptor:textureDescriptor];
+    if (metalTexture == nullptr)
+        throw "Failed to create staging surface";
 }

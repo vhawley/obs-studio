@@ -29,6 +29,6 @@ void gs_sampler_state::InitSampler()
     
     samplerState = [device->metalDevice
                     newSamplerStateWithDescriptor:samplerDesc];
-    if (samplerState == nil)
+    if (samplerState == nullptr)
         throw "Failed to create sampler state";
 }

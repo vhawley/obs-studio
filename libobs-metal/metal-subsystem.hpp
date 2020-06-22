@@ -58,8 +58,8 @@ struct gs_swap_chain : gs_object {
     
     inline void Release()
      {
-         nextTarget = nil;
-         nextDrawable = nil;
+         nextTarget = nullptr;
+         nextDrawable = nullptr;
      }
      void Rebuild();
     
@@ -74,7 +74,7 @@ struct gs_sampler_state : gs_object {
     
     void InitSampler();
     
-    inline void Release() { samplerState = nil; }
+    inline void Release() { samplerState = nullptr; }
     inline void Rebuild() { InitSampler(); }
     
     gs_sampler_state(gs_device_t *device, const gs_sampler_info *info);
@@ -233,10 +233,10 @@ struct gs_vertex_buffer : gs_object {
     // Mem management
     inline void Release()
     {
-        vertexBuffer = nil;
-        normalBuffer = nil;
-        colorBuffer  = nil;
-        tangentBuffer = nil;
+        vertexBuffer = nullptr;
+        normalBuffer = nullptr;
+        colorBuffer  = nullptr;
+        tangentBuffer = nullptr;
         uvBuffers.clear();
     }
     
@@ -450,8 +450,8 @@ struct gs_device {
     gs_zstencil_buffer *currentZStencilBuffer;
     bool pipelineStateChanged;
     
-    gs_vertex_buffer *lastVertexBuffer = nil;
-    gs_vertex_shader *lastVertexShader = nil;
+    gs_vertex_buffer *lastVertexBuffer = nullptr;
+    gs_vertex_shader *lastVertexShader = nullptr;
     
     stack<pair<gs_texture *, ClearState>> clearStates;
     BlendState                  blendState;
