@@ -9,26 +9,26 @@ info(*info)
 
 void gs_sampler_state::InitSampler()
 {
-    samplerDesc = [[MTLSamplerDescriptor alloc] init];
-    samplerDesc.sAddressMode    = ConvertGSAddressMode(info.address_u);
-    samplerDesc.tAddressMode    = ConvertGSAddressMode(info.address_v);
-    samplerDesc.rAddressMode    = ConvertGSAddressMode(info.address_w);
-    samplerDesc.minFilter       = ConvertGSMinFilter(info.filter);
-    samplerDesc.magFilter       = ConvertGSMagFilter(info.filter);
-    samplerDesc.mipFilter       = ConvertGSMipFilter(info.filter);
-    samplerDesc.maxAnisotropy   = min(max(info.max_anisotropy, 1), 16);
-    samplerDesc.compareFunction = MTLCompareFunctionAlways;
+    samplerDescriptor = [[MTLSamplerDescriptor alloc] init];
+    samplerDescriptor.sAddressMode    = ConvertGSAddressMode(info.address_u);
+    samplerDescriptor.tAddressMode    = ConvertGSAddressMode(info.address_v);
+    samplerDescriptor.rAddressMode    = ConvertGSAddressMode(info.address_w);
+    samplerDescriptor.minFilter       = ConvertGSMinFilter(info.filter);
+    samplerDescriptor.magFilter       = ConvertGSMagFilter(info.filter);
+    samplerDescriptor.mipFilter       = ConvertGSMipFilter(info.filter);
+    samplerDescriptor.maxAnisotropy   = min(max(info.max_anisotropy, 1), 16);
+    samplerDescriptor.compareFunction = MTLCompareFunctionAlways;
     
     if ((info.border_color & 0x000000FF) == 0)
-        samplerDesc.borderColor = MTLSamplerBorderColorTransparentBlack;
+        samplerDescriptor.borderColor = MTLSamplerBorderColorTransparentBlack;
     else if (info.border_color == 0xFFFFFFFF)
-        samplerDesc.borderColor = MTLSamplerBorderColorOpaqueWhite;
+        samplerDescriptor.borderColor = MTLSamplerBorderColorOpaqueWhite;
     else
-        samplerDesc.borderColor = MTLSamplerBorderColorOpaqueBlack;
+        samplerDescriptor.borderColor = MTLSamplerBorderColorOpaqueBlack;
     
     
     samplerState = [device->metalDevice
-                    newSamplerStateWithDescriptor:samplerDesc];
+                    newSamplerStateWithDescriptor:samplerDescriptor];
     if (samplerState == nil)
         throw "Failed to create sampler state";
 }

@@ -4,20 +4,32 @@ gs_device::gs_device(uint32_t adapter)
 : currentRenderSide(0),
 pipelineStateChanged(false)
 {
+    InitDevice(adapter);
+}
+
+void gs_device::InitDevice(uint32_t index)
+{
     NSArray *metalDevices = MTLCopyAllDevices();
     
-    deviceIndex = adapter;
+    deviceIndex = index;
     
     NSUInteger numDevices = [metalDevices count];
-    if (!metalDevices || numDevices < 1 || adapter > numDevices - 1) {
+    if (!metalDevices || numDevices < 1 || index > numDevices - 1) {
         throw "Failed to get Metal devices";
     }
     
     metalDevice = [metalDevices objectAtIndex:deviceIndex];
+    
+    if (![metalDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v4])
+        throw "Failed to initialize Metal";
+    
     renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
     renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
     commandQueue = [metalDevice newCommandQueue];
     [metalDevices dealloc];
+    
+    blog(LOG_INFO, "Metal loaded successfully, feature set used: %u_v%u",
+         1, 4);
 }
 
 const char *device_get_name(void) {
@@ -1189,17 +1201,17 @@ void device_depth_function(gs_device_t *device, enum gs_depth_test test)
 }
 
 static inline void update_stencilside_test(gs_device_t *device,
-       StencilSide &side, MTLStencilDescriptor *desc,
-       gs_depth_test test)
+                                           StencilSide &side, MTLStencilDescriptor *desc,
+                                           gs_depth_test test)
 {
-   if (side.test == test)
-       return;
-
-   side.test = test;
-
-   desc.stencilCompareFunction = ConvertGSDepthTest(test);
-
-   device->depthStencilState = nil;
+    if (side.test == test)
+        return;
+    
+    side.test = test;
+    
+    desc.stencilCompareFunction = ConvertGSDepthTest(test);
+    
+    device->depthStencilState = nil;
 }
 
 void device_stencil_function(gs_device_t *device,
@@ -1356,11 +1368,11 @@ void device_projection_push(gs_device_t *device)
 
 void device_projection_pop(gs_device_t *device)
 {
-     if (!device->projectionStack.size())
-         return;
-
-     device->currentProjectionMatrix = device->projectionStack.top();
-     device->projectionStack.pop();
+    if (!device->projectionStack.size())
+        return;
+    
+    device->currentProjectionMatrix = device->projectionStack.top();
+    device->projectionStack.pop();
 }
 
 /** Start gs functions
@@ -1525,7 +1537,7 @@ bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
     
     *data     = (uint8_t *)stagesurf->textureData.data();
     *linesize = stagesurf->width * gs_get_format_bpp(stagesurf->colorFormat) / 8;
-
+    
     stagesurf->device->currentStageSurface = stagesurf;
     return true;
 }
@@ -1606,7 +1618,7 @@ void gs_indexbuffer_destroy(gs_indexbuffer_t *indexbuffer)
 {
     assert(indexbuffer->objectType == GS_INDEX_BUFFER);
     delete indexbuffer;
-
+    
 }
 
 void gs_indexbuffer_flush(gs_indexbuffer_t *indexbuffer)
@@ -1626,15 +1638,15 @@ void gs_indexbuffer_flush_direct(gs_indexbuffer_t *indexbuffer,
                                  const void *data)
 {
     assert(indexbuffer->objectType == GS_INDEX_BUFFER);
-       
-       if (!indexbuffer->isDynamic) {
-           blog(LOG_ERROR, "gs_indexbuffer_flush_direct: index buffer is not "
-                "dynamic");
-           return;
-       }
     
-       indexbuffer->indices.reset((void *)data);
-       indexbuffer->PrepareBuffer();
+    if (!indexbuffer->isDynamic) {
+        blog(LOG_ERROR, "gs_indexbuffer_flush_direct: index buffer is not "
+             "dynamic");
+        return;
+    }
+    
+    indexbuffer->indices.reset((void *)data);
+    indexbuffer->PrepareBuffer();
 }
 
 void *gs_indexbuffer_get_data(const gs_indexbuffer_t *indexbuffer)
@@ -1718,10 +1730,142 @@ void device_debug_marker_begin(gs_device_t *device,
     UNUSED_PARAMETER(device);
     UNUSED_PARAMETER(markername);
     UNUSED_PARAMETER(color);
-
+    
 }
 
 void device_debug_marker_end(gs_device_t *device)
 {
     UNUSED_PARAMETER(device);
+}
+
+void gs_device::RebuildDevice() {
+    try {
+        id<MTLDevice> dev;
+        
+        blog(LOG_WARNING, "Device Remove/Reset!  Rebuilding all assets...");
+        
+        /* ----------------------------------------------------------------- */
+        
+        gs_object *obj = firstObject;
+        
+        while (obj) {
+            switch (obj->objectType) {
+                case GS_VERTEX_BUFFER:
+                    ((gs_vertex_buffer*)obj)->Release();
+                    break;
+                case GS_INDEX_BUFFER:
+                    ((gs_index_buffer*)obj)->Release();
+                    break;
+                case GS_TEXTURE:
+                    ((gs_texture*)obj)->Release();
+                    break;
+                case GS_ZSTENCIL_BUFFER:
+                    ((gs_zstencil_buffer*)obj)->Release();
+                    break;
+                case GS_STAGE_SURFACE:
+                    ((gs_stage_surface*)obj)->Release();
+                    break;
+                case GS_SAMPLER_STATE:
+                    ((gs_sampler_state*)obj)->Release();
+                    break;
+                case GS_SHADER:
+                    ((gs_shader*)obj)->Release();
+                    break;
+                case GS_SWAP_CHAIN:
+                    ((gs_swap_chain*)obj)->Release();
+                    break;
+            }
+            
+            obj = obj->nextObject;
+        }
+        
+        depthStencilState = nil;
+        renderPipelineState = nil;
+        commandBuffer = nil;
+        commandQueue = nil;
+        
+        /* ----------------------------------------------------------------- */
+        
+        InitDevice(deviceIndex);
+        
+        dev = metalDevice;
+        
+        obj = firstObject;
+        
+        while (obj) {
+            switch (obj->objectType) {
+                case GS_VERTEX_BUFFER:
+                    ((gs_vertex_buffer*)obj)->Rebuild();
+                    break;
+                case GS_INDEX_BUFFER:
+                    ((gs_index_buffer*)obj)->Rebuild();
+                    break;
+                case GS_TEXTURE:
+                    ((gs_texture*)obj)->Rebuild();
+                    break;
+                case GS_ZSTENCIL_BUFFER:
+                    ((gs_zstencil_buffer*)obj)->Rebuild();
+                    break;
+                case GS_STAGE_SURFACE:
+                    ((gs_stage_surface*)obj)->Rebuild();
+                    break;
+                case GS_SAMPLER_STATE:
+                    ((gs_sampler_state*)obj)->Rebuild();
+                    break;
+                case GS_SHADER:
+                    ((gs_shader*)obj)->Rebuild();
+                    break;
+                case GS_SWAP_CHAIN:
+                    ((gs_swap_chain*)obj)->Rebuild();
+                    break;
+            }
+            
+            obj = obj->nextObject;
+        }
+        
+        currentRenderTarget = nil;
+        currentRenderSide = 0;
+        currentZStencilBuffer = nil;
+        memset(&currentTextures, 0, sizeof(currentTextures));
+        memset(&currentSamplers, 0, sizeof(currentSamplers));
+        currentVertexBuffer = nil;
+        currentIndexBuffer = nil;
+        currentVertexShader = nil;
+        currentPixelShader = nil;
+        currentSwapChain = nil;
+        currentStageSurface = nil;
+        
+        lastVertexBuffer = nil;
+        lastVertexShader = nil;
+        
+        preserveClearTarget = nil;
+        while (clearStates.size())
+            clearStates.pop();
+        
+        while (projectionStack.size())
+            projectionStack.pop();
+    }
+    catch (const char *error) {
+        bcrash("Failed to recreate Metal: %s", error);
+    }
+}
+
+gs_object::gs_object(gs_device_t *device, gs_object_type type) :
+device(device),
+objectType(type)
+{
+    previousObject = nil;
+    nextObject = device->firstObject;
+    if (nextObject) {
+        nextObject->previousObject = this;
+    }
+    device->firstObject = this;
+}
+
+ gs_object::~gs_object()
+{
+   if (nextObject)
+       nextObject->previousObject = previousObject;
+   if (previousObject)
+       previousObject->nextObject = nextObject;
 }

@@ -127,3 +127,9 @@
        uvBuffers.emplace_back(buffer);
    }
 }
+
+void gs_vertex_buffer::Rebuild()
+{
+   if (!isDynamic)
+       InitBuffers();
+}

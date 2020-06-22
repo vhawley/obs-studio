@@ -58,3 +58,9 @@ void gs_index_buffer::InitBuffer()
     metalIndexBuffer.label = @"index";
 #endif
 }
+
+void gs_index_buffer::Rebuild()
+{
+   if (!isDynamic)
+       InitBuffer();
+}

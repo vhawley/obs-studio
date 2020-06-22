@@ -94,7 +94,7 @@ void gs_texture::InitTexture()
         throw "Failed to create 2D texture";
 }
 
-void gs_texture::RebuildTexture()
+void gs_texture::Rebuild()
 {
     if (isShared) {
         metalTexture = nil;

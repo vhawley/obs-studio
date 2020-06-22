@@ -63,6 +63,18 @@ gs_vertex_shader::gs_vertex_shader(gs_device_t *device, const char *shader, cons
     worldMatrix = gs_shader_get_param_by_name(this, "World");
 }
 
+void gs_shader::Rebuild()
+{
+   Compile();
+
+   for (gs_shader_param &param : params) {
+       param.nextSampler = nullptr;
+       param.curValue.clear();
+       param.changed = true;
+       gs_shader_set_default(&param);
+   }
+}
+
 void gs_shader::BuildConstantBuffer()
 {
     for (size_t i = 0; i < params.size(); i++) {
