@@ -7,7 +7,7 @@ gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
 : gs_object(device, GS_SWAP_CHAIN),
 initData((gs_init_data *)data),
 view(data->window.view),
-nextTarget(nullptr)
+nextTarget(nil)
 {
     metalLayer = [CAMetalLayer layer];
     metalLayer.device = device->metalDevice;
@@ -18,7 +18,7 @@ nextTarget(nullptr)
 
 gs_texture *gs_swap_chain::CurrentTarget()
 {
-    if (nextTarget == nullptr)
+    if (nextTarget == nil)
         return NextTarget();
     return nextTarget;
 }
@@ -26,7 +26,7 @@ gs_texture *gs_swap_chain::CurrentTarget()
 gs_texture *gs_swap_chain::NextTarget()
 {
     nextDrawable = [metalLayer nextDrawable];
-    if (nextDrawable != nullptr)
+    if (nextDrawable != nil)
         nextTarget = new gs_texture(device, [[metalLayer nextDrawable] texture]);
     
     return nextTarget;

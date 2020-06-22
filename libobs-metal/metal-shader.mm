@@ -9,7 +9,7 @@
 /** Start gs_shader functions
  */
 
-static MTLCompileOptions *metalCompileOptions = nullptr;
+static MTLCompileOptions *metalCompileOptions = nil;
 
 gs_shader::gs_shader(gs_device_t *device, const char *shader, const char *file, gs_shader_type shader_type)
 : gs_object(device, GS_SHADER),
@@ -109,7 +109,7 @@ void gs_shader::BuildConstantBuffer()
 
 void gs_shader::Compile()
 {
-    if (metalCompileOptions == nullptr) {
+    if (metalCompileOptions == nil) {
         metalCompileOptions = [[MTLCompileOptions alloc] init];
         metalCompileOptions.languageVersion = MTLLanguageVersion2_2;
     }
@@ -123,18 +123,18 @@ void gs_shader::Compile()
                                                            options:metalCompileOptions error:&errors];
     [nsShaderString dealloc];
     
-    if (lib == nullptr) {
+    if (lib == nil) {
         blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
              metalShader.c_str());
         
-        if (errors != nullptr)
+        if (errors != nil)
             throw ShaderError(errors);
         else
             throw "Failed to compile shader";
     }
     
     id<MTLFunction> func = [lib newFunctionWithName:@"_main"];
-    if (func == nullptr)
+    if (func == nil)
         throw "Failed to create function";
     
     metalLibrary  = lib;
@@ -161,7 +161,7 @@ inline void gs_shader::UpdateParam(uint8_t *data, gs_shader_param &param)
        if (param.nextSampler) {
            device_load_samplerstate(device, param.nextSampler,
                    param.textureID);
-           param.nextSampler = nullptr;
+           param.nextSampler = nil;
        }
    }
 }
@@ -191,18 +191,18 @@ void gs_shader::UploadParams(id<MTLRenderCommandEncoder> commandEncoder)
 
 void gs_shader_destroy(gs_shader_t *shader)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
     
     if (shader->device->lastVertexShader == shader)
-        shader->device->lastVertexShader = nullptr;
+        shader->device->lastVertexShader = nil;
     
     delete shader;
 }
 
 int gs_shader_get_num_params(const gs_shader_t *shader)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
 
     return (int)shader->params.size();
@@ -211,7 +211,7 @@ int gs_shader_get_num_params(const gs_shader_t *shader)
 gs_sparam_t *gs_shader_get_param_by_idx(gs_shader_t *shader,
                                         uint32_t param)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
 
     return &shader->params[param];
@@ -220,7 +220,7 @@ gs_sparam_t *gs_shader_get_param_by_idx(gs_shader_t *shader,
 gs_sparam_t *gs_shader_get_param_by_name(gs_shader_t *shader,
                                          const char *name)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
     for (size_t i = 0; i < shader->params.size(); i++) {
          gs_shader_param &param = shader->params[i];
@@ -228,25 +228,25 @@ gs_sparam_t *gs_shader_get_param_by_name(gs_shader_t *shader,
              return &param;
      }
 
-      return nullptr;
+      return nil;
 }
 
 gs_sparam_t *gs_shader_get_viewproj_matrix(const gs_shader_t *shader)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
     if (shader->shaderType != GS_SHADER_VERTEX)
-         return nullptr;
+         return nil;
 
     return static_cast<const gs_vertex_shader*>(shader)->viewProjectionMatrix;
 }
 
 gs_sparam_t *gs_shader_get_world_matrix(const gs_shader_t *shader)
 {
-    assert(shader != nullptr);
+    assert(shader != nil);
     assert(shader->objectType == GS_SHADER);
     if (shader->shaderType != GS_SHADER_VERTEX)
-         return nullptr;
+         return nil;
     
     return static_cast<const gs_vertex_shader*>(shader)->worldMatrix;
 }

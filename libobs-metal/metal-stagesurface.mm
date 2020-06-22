@@ -28,6 +28,6 @@ void gs_stage_surface::DownloadTexture()
 void gs_stage_surface::InitTexture()
 {
     metalTexture = [device->metalDevice newTextureWithDescriptor:textureDescriptor];
-    if (metalTexture == nullptr)
+    if (metalTexture == nil)
         throw "Failed to create staging surface";
 }

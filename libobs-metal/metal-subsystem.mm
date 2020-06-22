@@ -74,7 +74,7 @@ bool device_enum_adapters(
 {
     uint32_t i = 0;
     NSArray *devices = MTLCopyAllDevices();
-    if (devices == nullptr)
+    if (devices == nil)
         return false;
     
     for (id<MTLDevice> device in devices) {
@@ -101,18 +101,18 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 
 void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
 {
-    if (device->currentSwapChain == nullptr) {
+    if (device->currentSwapChain == nil) {
         blog(LOG_WARNING, "device_resize (Metal): No active swap");
         return;
     }
     
     try {
-        id<MTLTexture> renderTarget = nullptr;
-        id<MTLTexture> zstencilTarget = nullptr;
+        id<MTLTexture> renderTarget = nil;
+        id<MTLTexture> zstencilTarget = nil;
         
-        device->renderPassDescriptor.colorAttachments[0].texture = nullptr;
-        device->renderPassDescriptor.depthAttachment.texture     = nullptr;
-        device->renderPassDescriptor.stencilAttachment.texture   = nullptr;
+        device->renderPassDescriptor.colorAttachments[0].texture = nil;
+        device->renderPassDescriptor.depthAttachment.texture     = nil;
+        device->renderPassDescriptor.stencilAttachment.texture   = nil;
         device->currentSwapChain->Resize(x, y);
         
         if (device->currentRenderTarget)
@@ -361,7 +361,7 @@ void device_load_texture(gs_device_t *device, gs_texture_t *tex,
 void device_load_samplerstate(gs_device_t *device,
                               gs_samplerstate_t *samplerstate, int unit)
 {
-    assert(device != nullptr);
+    assert(device != nil);
     assert(unit >= 0);
     assert(unit < GS_MAX_TEXTURES);
     if (device->currentSamplers[unit] != samplerstate)
@@ -371,8 +371,8 @@ void device_load_samplerstate(gs_device_t *device,
 void device_load_vertexshader(gs_device_t *device,
                               gs_shader_t *vertshader)
 {
-    id<MTLFunction>     function  = nullptr;
-    MTLVertexDescriptor *vertDesc = nullptr;
+    id<MTLFunction>     function  = nil;
+    MTLVertexDescriptor *vertDesc = nil;
     
     if (device->currentVertexShader == vertshader)
         return;
@@ -450,7 +450,7 @@ gs_texture_t *device_get_render_target(const gs_device_t *device)
 {
     if (device->currentSwapChain &&
         device->currentRenderTarget == device->currentSwapChain->CurrentTarget())
-        return nullptr;
+        return nil;
     
     return device->currentRenderTarget;
 }
@@ -529,9 +529,9 @@ void device_set_cube_render_target(gs_device_t *device,
     device->currentRenderTarget = cubetex;
     device->currentRenderSide = side;
     device->currentZStencilBuffer = zstencil;
-    device->renderPassDescriptor.colorAttachments[0].texture = nullptr;
-    device->renderPassDescriptor.depthAttachment.texture   = nullptr;
-    device->renderPassDescriptor.stencilAttachment.texture = nullptr;
+    device->renderPassDescriptor.colorAttachments[0].texture = nil;
+    device->renderPassDescriptor.depthAttachment.texture   = nil;
+    device->renderPassDescriptor.stencilAttachment.texture = nil;
     
     if (cubetex) {
         device->renderPassDescriptor.colorAttachments[0].texture = cubetex->metalTexture;
@@ -553,7 +553,7 @@ inline void gs_device::CopyTex(id<MTLTexture> dst,
                                gs_texture_t *src, uint32_t src_x, uint32_t src_y,
                                uint32_t src_w, uint32_t src_h)
 {
-    assert(commandBuffer != nullptr);
+    assert(commandBuffer != nil);
     
     if (src_w == 0)
         src_w = src->width;
@@ -704,7 +704,7 @@ void gs_device::SetClear()
     if (clearStates.size())
         preserveClearTarget = clearStates.top().first;
     else
-        preserveClearTarget = nullptr;
+        preserveClearTarget = nil;
 }
 
 void gs_device::UploadVertexBuffer(id<MTLRenderCommandEncoder> commandEncoder)
@@ -735,7 +735,7 @@ void gs_device::UploadVertexBuffer(id<MTLRenderCommandEncoder> commandEncoder)
 void gs_device::UploadTextures(id<MTLRenderCommandEncoder> commandEncoder)
 {
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
-        if (currentTextures[i] == nullptr)
+        if (currentTextures[i] == nil)
             break;
         
         [commandEncoder setFragmentTexture:currentTextures[i]->metalTexture atIndex:i];
@@ -746,7 +746,7 @@ void gs_device::UploadSamplers(id<MTLRenderCommandEncoder> commandEncoder)
 {
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
         gs_sampler_state *sampler = currentSamplers[i];
-        if (sampler == nullptr)
+        if (sampler == nil)
             break;
         
         [commandEncoder setFragmentSamplerState:sampler->samplerState
@@ -767,7 +767,7 @@ void gs_device::LoadRasterState(id<MTLRenderCommandEncoder> commandEncoder)
 void gs_device::LoadZStencilState(id<MTLRenderCommandEncoder> commandEncoder)
 {
     if (zstencilState.depthEnabled) {
-        if (depthStencilState == nullptr) {
+        if (depthStencilState == nil) {
             depthStencilState = [metalDevice newDepthStencilStateWithDescriptor: zstencilState.dsd];
         }
         [commandEncoder setDepthStencilState:depthStencilState];
@@ -804,7 +804,7 @@ void gs_device::DrawPrimitives(id<MTLRenderCommandEncoder> commandEncoder,
                                   indexBuffer:currentIndexBuffer->metalIndexBuffer
                             indexBufferOffset:0];
         if (currentIndexBuffer->isDynamic)
-            currentIndexBuffer->metalIndexBuffer = nullptr;
+            currentIndexBuffer->metalIndexBuffer = nil;
     } else {
         if (numVerts == 0)
             numVerts = static_cast<uint32_t>(
@@ -833,12 +833,12 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
         return;
     }
     
-    if (renderPipelineState == nullptr || pipelineStateChanged) {
-        NSError *error = nullptr;
+    if (renderPipelineState == nil || pipelineStateChanged) {
+        NSError *error = nil;
         renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
                                renderPipelineDescriptor error:&error];
         
-        if (renderPipelineState == nullptr) {
+        if (renderPipelineState == nil) {
             blog(LOG_ERROR, "device_draw (Metal): %s",
                  error.localizedDescription.UTF8String);
             return;
@@ -901,7 +901,7 @@ inline id<MTLBuffer> gs_device::CreateBuffer(void *data, size_t length)
     MTLResourceStorageModeShared;
     id<MTLBuffer> buffer = [metalDevice newBufferWithBytes:data
                                                     length:length options:options];
-    if (buffer == nullptr)
+    if (buffer == nil)
         throw "Failed to create buffer";
     return buffer;
 }
@@ -960,15 +960,15 @@ void device_load_swapchain(gs_device_t *device,
         device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->metalLayer.nextDrawable.texture;
         device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = device->currentSwapChain->metalLayer.pixelFormat;
     } else {
-        device->currentSwapChain = nullptr;
-        device->currentRenderTarget = nullptr;
-        device->renderPassDescriptor.colorAttachments[0].texture = nullptr;
+        device->currentSwapChain = nil;
+        device->currentRenderTarget = nil;
+        device->renderPassDescriptor.colorAttachments[0].texture = nil;
     }
     
     device->currentRenderSide = 0;
-    device->currentZStencilBuffer = nullptr;
-    device->renderPassDescriptor.depthAttachment.texture = nullptr;
-    device->renderPassDescriptor.stencilAttachment.texture = nullptr;
+    device->currentZStencilBuffer = nil;
+    device->renderPassDescriptor.depthAttachment.texture = nil;
+    device->renderPassDescriptor.stencilAttachment.texture = nil;
     
     device->pipelineStateChanged = true;
     blog(LOG_INFO, "device_load_swapchain (Metal): Swapchain loaded");
@@ -1005,7 +1005,7 @@ void device_present(gs_device_t *device)
         UNUSED_PARAMETER(buf);
     }];
     [device->commandBuffer commit];
-    device->commandBuffer = nullptr;
+    device->commandBuffer = nil;
     
     if (device->currentSwapChain)
         device->currentSwapChain->NextTarget();
@@ -1013,18 +1013,18 @@ void device_present(gs_device_t *device)
 
 void device_flush(gs_device_t *device)
 {
-    if (device->commandBuffer != nullptr) {
+    if (device->commandBuffer != nil) {
         device->PushResources();
         
         [device->commandBuffer commit];
         [device->commandBuffer waitUntilCompleted];
-        device->commandBuffer = nullptr;
+        device->commandBuffer = nil;
         
         device->ReleaseResources();
         
         if (device->currentStageSurface) {
             device->currentStageSurface->DownloadTexture();
-            device->currentStageSurface = nullptr;
+            device->currentStageSurface = nil;
         }
     }
 }
@@ -1064,7 +1064,7 @@ void device_enable_depth_test(gs_device_t *device, bool enable)
     
     device->zstencilState.depthEnabled = enable;
     
-    device->depthStencilState = nullptr;
+    device->depthStencilState = nil;
 }
 
 void device_enable_stencil_test(gs_device_t *device, bool enable)
@@ -1079,7 +1079,7 @@ void device_enable_stencil_test(gs_device_t *device, bool enable)
     state.dsd.frontFaceStencil.readMask = enable ? 1 : 0;
     state.dsd.backFaceStencil.readMask  = enable ? 1 : 0;
     
-    device->depthStencilState = nullptr;
+    device->depthStencilState = nil;
 }
 
 void device_enable_stencil_write(gs_device_t *device, bool enable)
@@ -1094,7 +1094,7 @@ void device_enable_stencil_write(gs_device_t *device, bool enable)
     state.dsd.frontFaceStencil.writeMask = enable ? 1 : 0;
     state.dsd.backFaceStencil.writeMask  = enable ? 1 : 0;
     
-    device->depthStencilState = nullptr;
+    device->depthStencilState = nil;
 }
 
 void device_enable_color(gs_device_t *device, bool red, bool green,
@@ -1185,7 +1185,7 @@ void device_depth_function(gs_device_t *device, enum gs_depth_test test)
     
     device->zstencilState.dsd.depthCompareFunction = ConvertGSDepthTest(test);
     
-    device->depthStencilState = nullptr;
+    device->depthStencilState = nil;
 }
 
 static inline void update_stencilside_test(gs_device_t *device,
@@ -1199,7 +1199,7 @@ static inline void update_stencilside_test(gs_device_t *device,
 
    desc.stencilCompareFunction = ConvertGSDepthTest(test);
 
-   device->depthStencilState = nullptr;
+   device->depthStencilState = nil;
 }
 
 void device_stencil_function(gs_device_t *device,
@@ -1236,7 +1236,7 @@ static inline void update_stencilside_op(gs_device_t *device,
     desc.depthFailureOperation     = ConvertGSStencilOp(zfail);
     desc.depthStencilPassOperation = ConvertGSStencilOp(zpass);
     
-    device->depthStencilState = nullptr;
+    device->depthStencilState = nil;
 }
 
 void device_stencil_op(gs_device_t *device, enum gs_stencil_side side,
@@ -1286,7 +1286,7 @@ void device_get_viewport(const gs_device_t *device,
 void device_set_scissor_rect(gs_device_t *device,
                              const struct gs_rect *rect)
 {
-    if (rect != nullptr) {
+    if (rect != nil) {
         device->rasterState.scissorEnabled = true;
         device->rasterState.scissorRect    = *rect;
         device->rasterState.mtlScissorRect =
@@ -1371,7 +1371,7 @@ void gs_swapchain_destroy(gs_swapchain_t *swapchain)
     assert(swapchain->objectType == GS_SWAP_CHAIN);
     
     if (swapchain == swapchain->device->currentSwapChain)
-        device_load_swapchain(swapchain->device, nullptr);
+        device_load_swapchain(swapchain->device, nil);
     
     delete swapchain;
 }
@@ -1512,7 +1512,7 @@ bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
                          uint32_t *linesize)
 {
     assert(stagesurf->objectType == GS_STAGE_SURFACE);
-    assert(stagesurf->device->commandBuffer != nullptr);
+    assert(stagesurf->device->commandBuffer != nil);
     
     @autoreleasepool {
         id<MTLBlitCommandEncoder> commandEncoder =
@@ -1534,7 +1534,7 @@ void gs_stagesurface_unmap(gs_stagesurf_t *stagesurf)
 {
     assert(stagesurf->objectType == GS_STAGE_SURFACE);
     
-    stagesurf->device->currentStageSurface = nullptr;
+    stagesurf->device->currentStageSurface = nil;
     delete stagesurf;
 }
 
@@ -1553,7 +1553,7 @@ void gs_samplerstate_destroy(gs_samplerstate_t *samplerstate)
         for (size_t i = 0; i < GS_MAX_TEXTURES; i++)
             if (samplerstate->device->currentSamplers[i] ==
                 samplerstate)
-                samplerstate->device->currentSamplers[i] = nullptr;
+                samplerstate->device->currentSamplers[i] = nil;
     }
     
     delete samplerstate;
@@ -1564,7 +1564,7 @@ void gs_vertexbuffer_destroy(gs_vertbuffer_t *vertbuffer)
     assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
     
     if (vertbuffer->device->lastVertexBuffer == vertbuffer)
-        vertbuffer->device->lastVertexBuffer = nullptr;
+        vertbuffer->device->lastVertexBuffer = nil;
     
     delete vertbuffer;
 }
@@ -1657,7 +1657,7 @@ enum gs_index_type gs_indexbuffer_get_type(const gs_indexbuffer_t *indexbuffer)
 
 void gs_timer_destroy(gs_timer_t *timer)
 {
-    delete timer;
+    UNUSED_PARAMETER(timer);
 }
 
 void gs_timer_begin(gs_timer_t *timer)

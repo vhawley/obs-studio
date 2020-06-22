@@ -28,9 +28,7 @@ enum gs_object_type {
     GS_STAGE_SURFACE,
     GS_SAMPLER_STATE,
     GS_SHADER,
-    GS_SWAP_CHAIN,
-    GS_TIMER,
-    GS_TIMER_RANGE
+    GS_SWAP_CHAIN
 };
 
 struct gs_object {
@@ -58,8 +56,8 @@ struct gs_swap_chain : gs_object {
     
     inline void Release()
      {
-         nextTarget = nullptr;
-         nextDrawable = nullptr;
+         nextTarget = nil;
+         nextDrawable = nil;
      }
      void Rebuild();
     
@@ -74,7 +72,7 @@ struct gs_sampler_state : gs_object {
     
     void InitSampler();
     
-    inline void Release() { samplerState = nullptr; }
+    inline void Release() { samplerState = nil; }
     inline void Rebuild() { InitSampler(); }
     
     gs_sampler_state(gs_device_t *device, const gs_sampler_info *info);
@@ -97,7 +95,7 @@ struct gs_shader_param {
     const gs_shader_param_type type;
     const int                  arrayCount;
     
-    struct gs_sampler_state    *nextSampler = nullptr;
+    struct gs_sampler_state    *nextSampler = nil;
     
     uint32_t                   textureID;
     size_t                     pos;
@@ -139,7 +137,7 @@ struct gs_pixel_shader : gs_shader {
         for (i = 0; i < samplers.size(); i++)
             states[i] = &samplers[i]->sampler;
         for (; i < GS_MAX_TEXTURES; i++)
-            states[i] = nullptr;
+            states[i] = nil;
     }
     
     gs_pixel_shader(gs_device_t *device, const char *shader, const char *file);
@@ -233,10 +231,10 @@ struct gs_vertex_buffer : gs_object {
     // Mem management
     inline void Release()
     {
-        vertexBuffer = nullptr;
-        normalBuffer = nullptr;
-        colorBuffer  = nullptr;
-        tangentBuffer = nullptr;
+        vertexBuffer = nil;
+        normalBuffer = nil;
+        colorBuffer  = nil;
+        tangentBuffer = nil;
         uvBuffers.clear();
     }
     
@@ -410,20 +408,6 @@ struct ZStencilState {
     }
 };
 
-struct gs_timer : gs_object {
-    
-    inline gs_timer(gs_device_t *device) : gs_object(device, GS_TIMER) {
-        
-    }
-};
-
-struct gs_timer_range : gs_object {
-    
-    inline gs_timer_range(gs_device_t *device) : gs_object(device, GS_TIMER_RANGE) {
-        
-    }
-};
-
 struct gs_device {
     id<MTLDevice> metalDevice;
     id<MTLRenderPipelineState> renderPipelineState;
@@ -450,8 +434,8 @@ struct gs_device {
     gs_zstencil_buffer *currentZStencilBuffer;
     bool pipelineStateChanged;
     
-    gs_vertex_buffer *lastVertexBuffer = nullptr;
-    gs_vertex_shader *lastVertexShader = nullptr;
+    gs_vertex_buffer *lastVertexBuffer = nil;
+    gs_vertex_shader *lastVertexShader = nil;
     
     stack<pair<gs_texture *, ClearState>> clearStates;
     BlendState                  blendState;
