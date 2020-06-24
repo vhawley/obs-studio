@@ -5,7 +5,7 @@
 
 gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
 : gs_object(device, GS_SWAP_CHAIN),
-initData((gs_init_data *)data),
+initData(const_cast<gs_init_data *>(data)),
 view(data->window.view),
 nextTarget(nil)
 {

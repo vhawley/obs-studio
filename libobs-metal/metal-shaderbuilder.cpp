@@ -1197,7 +1197,7 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	output << ")" << endl;
 
 	token = func->start;
-    currentFunc = (shader_func *)func;
+    currentFunc = const_cast<shader_func *>(func);
 	WriteFunctionContent(token, "}");
     currentFunc = nil;
     

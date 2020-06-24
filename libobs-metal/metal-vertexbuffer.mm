@@ -9,7 +9,7 @@
        uint32_t flags)
    : gs_object    (device, GS_VERTEX_BUFFER),
      isDynamic ((flags & GS_DYNAMIC) != 0),
-     vbData    (data, gs_vbdata_destroy)
+     vbData(data)
 {
    if (!data->num)
        throw "Cannot initialize vertex buffer with 0 vertices";

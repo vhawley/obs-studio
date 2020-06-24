@@ -227,7 +227,7 @@ struct gs_texture : gs_object {
 
 struct gs_vertex_buffer : gs_object {
     const bool                 isDynamic;
-    unique_ptr<gs_vb_data, decltype(&gs_vbdata_destroy)> vbData;
+    gs_vb_data *vbData;
     
     id<MTLBuffer>              vertexBuffer;
     id<MTLBuffer>              normalBuffer;
