@@ -23,7 +23,7 @@ static inline MTLIndexType ConvertGSIndexType(gs_index_type type)
 gs_index_buffer::gs_index_buffer(gs_device_t *device, gs_index_type indexType, void *indices, size_t num, uint32_t flags)
 : gs_object(device, GS_INDEX_BUFFER),
 indexType(indexType),
-indices(indices, bfree),
+indices(indices),
 num(num),
 len(ConvertGSIndexTypeToSize(indexType) * num),
 isDynamic((flags & GS_DYNAMIC) != 0),
@@ -33,11 +33,16 @@ metalIndexType(ConvertGSIndexType(indexType))
         InitBuffer();
 }
 
-void gs_index_buffer::PrepareBuffer()
+void gs_index_buffer::PrepareBuffer(void *new_indices)
 {
     assert(isDynamic);
     
-    metalIndexBuffer = device->GetBuffer(indices.get(), len);
+    if (indices != nil && indices != new_indices) {
+        bfree(indices);
+        indices = new_indices;
+    }
+    
+    metalIndexBuffer = device->GetBuffer(new_indices, len);
 #if _DEBUG
     metalIndexBuffer.label = @"index";
 #endif

@@ -19,17 +19,16 @@ nextTarget(nil)
 gs_texture *gs_swap_chain::CurrentTarget()
 {
     if (nextTarget == nil)
-        return NextTarget();
+        SetNextTarget();
     return nextTarget;
 }
 
-gs_texture *gs_swap_chain::NextTarget()
+void gs_swap_chain::SetNextTarget()
 {
-    nextDrawable = [metalLayer nextDrawable];
-    if (nextDrawable != nil)
-        nextTarget = new gs_texture(device, [[metalLayer nextDrawable] texture]);
-    
-    return nextTarget;
+    if (nextDrawable == nil) {
+        nextDrawable = [metalLayer nextDrawable];
+        nextTarget = new gs_texture(device, [nextDrawable texture]);
+    }
 }
 
 void gs_swap_chain::Resize(uint32_t cx, uint32_t cy)

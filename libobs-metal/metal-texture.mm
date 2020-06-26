@@ -30,8 +30,8 @@ metalPixelFormat(ConvertGSTextureFormat(colorFormat))
 // Init from MTLTexture
 gs_texture::gs_texture(gs_device_t *device, id<MTLTexture> texture)
 : gs_object(device, GS_TEXTURE),
-width(texture.width),
-height(texture.height),
+width((uint32_t)texture.width),
+height((uint32_t)texture.height),
 isRenderTarget(false),
 isDynamic(false),
 isShared(true),

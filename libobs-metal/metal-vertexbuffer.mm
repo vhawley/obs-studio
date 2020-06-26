@@ -29,26 +29,33 @@
    return b;
 }
 
- void gs_vertex_buffer::PrepareBuffers()
+ void gs_vertex_buffer::PrepareBuffers(gs_vb_data *data)
 {
    assert(isDynamic);
-
-   vertexBuffer = PrepareBuffer(vbData->points, sizeof(vec3), new string("point"));
-   if (vbData->normals)
-       normalBuffer = PrepareBuffer(vbData->normals, sizeof(vec3),
+    
+    if(vbData != nil && vbData != data) {
+        gs_vbdata_destroy(vbData);
+        vbData = data;
+    }
+    
+   vertexBuffer = PrepareBuffer(data->points, sizeof(vec3), new string("point"));
+   if (data->normals)
+       normalBuffer = PrepareBuffer(data->normals, sizeof(vec3),
                new string("normal"));
-   if (vbData->tangents)
-       tangentBuffer = PrepareBuffer(vbData->tangents, sizeof(vec3),
+   if (data->tangents)
+       tangentBuffer = PrepareBuffer(data->tangents, sizeof(vec3),
                new string("color"));
-   if (vbData->colors)
-       colorBuffer = PrepareBuffer(vbData->colors, sizeof(uint32_t),
+   if (data->colors)
+       colorBuffer = PrepareBuffer(data->colors, sizeof(uint32_t),
                new string("tangent"));
 
-   for (size_t i = 0; i < vbData->num_tex; i++) {
-       gs_tvertarray &tv = vbData->tvarray[i];
+   for (size_t i = 0; i < data->num_tex; i++) {
+       gs_tvertarray &tv = data->tvarray[i];
        uvBuffers.push_back(PrepareBuffer(tv.array,
                tv.width * sizeof(float), new string("texcoord")));
    }
+    
+    
 }
 
  static inline void PushBuffer(vector<id<MTLBuffer>> &buffers,

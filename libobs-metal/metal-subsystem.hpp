@@ -48,11 +48,11 @@ struct gs_swap_chain : gs_object {
     NSView *view = nil;
     CAMetalLayer *metalLayer = nil;
     gs_texture *nextTarget = nil;
-    id<CAMetalDrawable> nextDrawable;
+    id<CAMetalDrawable> nextDrawable = nil;
     uint32_t numBuffers;
     
     gs_texture *CurrentTarget();
-    gs_texture *NextTarget();
+    void SetNextTarget();
     
     void Resize(uint32_t cx, uint32_t cy);
     
@@ -227,7 +227,7 @@ struct gs_texture : gs_object {
 
 struct gs_vertex_buffer : gs_object {
     const bool                 isDynamic;
-    gs_vb_data *vbData;
+    gs_vb_data *vbData = nil;
     
     id<MTLBuffer>              vertexBuffer;
     id<MTLBuffer>              normalBuffer;
@@ -236,7 +236,7 @@ struct gs_vertex_buffer : gs_object {
     vector<id<MTLBuffer>> uvBuffers;
     
     inline id<MTLBuffer> PrepareBuffer(void *array, size_t elementSize, string *name);
-    void PrepareBuffers();
+    void PrepareBuffers(gs_vb_data *data);
     
     void MakeBufferList(gs_vertex_shader *shader,
                         std::vector<id<MTLBuffer>> &buffers);
@@ -261,7 +261,7 @@ struct gs_vertex_buffer : gs_object {
 
 struct gs_index_buffer : gs_object {
     gs_index_type indexType;
-    unique_ptr<void, decltype(&bfree)> indices;
+    void *indices;
     const size_t num;
     const size_t len;
     const bool isDynamic;
@@ -269,7 +269,7 @@ struct gs_index_buffer : gs_object {
     id<MTLBuffer>       metalIndexBuffer;
     MTLIndexType        metalIndexType;
     
-    void PrepareBuffer();
+    void PrepareBuffer(void *new_indices);
     void InitBuffer();
     
     inline void Release() {
