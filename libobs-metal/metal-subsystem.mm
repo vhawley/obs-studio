@@ -1066,7 +1066,7 @@ void device_load_swapchain(gs_device_t *device,
         device->currentSwapChain = swapchain;
         device->currentRenderTarget = swapchain->CurrentTarget();
         
-        device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->metalLayer.nextDrawable.texture;
+        device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->nextDrawable.texture;
         device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = device->currentSwapChain->metalLayer.pixelFormat;
     } else {
         device->currentSwapChain = nil;
