@@ -422,6 +422,7 @@ void device_load_pixelshader(gs_device_t *device,
     
     id<MTLFunction> function = nil;
     gs_sampler_state *states[GS_MAX_TEXTURES];
+    memset(states, 0, sizeof(states));
     
     if (pixelshader) {
         function = ps->metalFunction;
@@ -1043,7 +1044,7 @@ void gs_device::PushResources()
 void gs_device::ReleaseResources()
 {
     lock_guard<mutex> lock(mutexObj);
-    auto& pool = bufferPools.front();
+    vector<id<MTLBuffer>> pool = bufferPools.front();
     unusedBufferPool.insert(unusedBufferPool.end(),
                             pool.begin(), pool.end());
     bufferPools.pop();
@@ -1066,7 +1067,7 @@ void device_load_swapchain(gs_device_t *device,
         device->currentSwapChain = swapchain;
         device->currentRenderTarget = swapchain->CurrentTarget();
         
-        device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->nextDrawable.texture;
+        device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->drawable.texture;
         device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = device->currentSwapChain->metalLayer.pixelFormat;
     } else {
         device->currentSwapChain = nil;
@@ -1101,7 +1102,7 @@ void device_present(gs_device_t *device)
 {
     if (device->currentSwapChain) {
         [device->commandBuffer presentDrawable:
-         device->currentSwapChain->nextDrawable];
+         device->currentSwapChain->drawable];
     } else {
         blog(LOG_WARNING, "device_present (Metal): No active swap");
     }

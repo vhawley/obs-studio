@@ -47,8 +47,8 @@ struct gs_swap_chain : gs_object {
     
     NSView *view = nil;
     CAMetalLayer *metalLayer = nil;
-    gs_texture *nextTarget = nil;
-    id<CAMetalDrawable> nextDrawable = nil;
+    gs_texture *target = nil;
+    id<CAMetalDrawable> drawable = nil;
     uint32_t numBuffers;
     
     gs_texture *CurrentTarget();
@@ -58,8 +58,8 @@ struct gs_swap_chain : gs_object {
     
     inline void Release()
      {
-         nextTarget = nil;
-         nextDrawable = nil;
+         target = nil;
+         drawable = nil;
      }
      void Rebuild();
     
@@ -540,6 +540,20 @@ static inline MTLPixelFormat ConvertGSTextureFormat(gs_color_format format)
         case GS_R8G8:        return MTLPixelFormatRG8Unorm;
     }
     return MTLPixelFormatInvalid;
+}
+
+static inline MTLPixelFormat ConvertGSZStencilFormat(gs_zstencil_format format)
+{
+   switch (format) {
+   case GS_ZS_NONE:    return MTLPixelFormatInvalid;
+   case GS_Z16:        return MTLPixelFormatDepth16Unorm;
+   case GS_Z24_S8:     return MTLPixelFormatDepth24Unorm_Stencil8;
+   case GS_Z32F:       return MTLPixelFormatDepth32Float;
+   case GS_Z32F_S8X24: return MTLPixelFormatDepth32Float_Stencil8;
+   default:            throw "Failed to initialize zstencil buffer";
+   }
+
+   return MTLPixelFormatInvalid;
 }
 
 static inline MTLPrimitiveType ConvertGSTopology(gs_draw_mode mode)
