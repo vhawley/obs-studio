@@ -1024,9 +1024,31 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 
 				cmp = cmp2;
 			}
+            // check for type conversion
             string name(token->str.array, token->str.len);
             if (RequiresTypeConversion(name)) {
                 initializerType = (char *)name.c_str();
+            }
+            
+            // check for float3->float4 output padding on pixel shaders
+            if (isPixelShader() && strref_cmp(&token->str, "return") == 0) {
+                string funcName(currentFunc->name);
+                const bool isMain = funcName == "main";
+                if (isMain && strcmp("float3", currentFunc->return_type) == 0) {
+                    // go to next token
+                    token++;
+                    
+                    // write space
+                    output.write(token->str.array, token->str.len);
+                    token++;
+                    
+                    // write padded output
+                    output << "float4(";
+                    
+                    WriteFunctionContent(token, ";");
+                    
+                    output << ", 1);";
+                }
             }
 		} else if (token->type == CFTOKEN_OTHER) {
             if (*token->str.array == '{') {
@@ -1083,7 +1105,12 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
         if (vertPrefix) output << *vertPrefix << "VertexOut " << funcName << '(';
         else output << func->return_type << ' ' << funcName << '(';
     }
-    else output << func->return_type << ' ' << funcName << '(';
+    else if (isPixelShader()) {
+        if (isMain && strcmp(func->return_type, "float3") == 0) {
+            // pad float3 to float4 for pixel shaders
+            output << "float4" << ' ' << funcName << '(';
+        } else output << func->return_type << ' ' << funcName << '(';
+    }
 	
 
 	bool isFirst = true;

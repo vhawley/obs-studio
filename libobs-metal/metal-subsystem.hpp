@@ -229,10 +229,10 @@ struct gs_vertex_buffer : gs_object {
     const bool                 isDynamic;
     gs_vb_data *vbData = nil;
     
-    id<MTLBuffer>              vertexBuffer;
-    id<MTLBuffer>              normalBuffer;
-    id<MTLBuffer>              colorBuffer;
-    id<MTLBuffer>              tangentBuffer;
+    id<MTLBuffer>              vertexBuffer = nil;
+    id<MTLBuffer>              normalBuffer = nil;
+    id<MTLBuffer>              colorBuffer = nil;
+    id<MTLBuffer>              tangentBuffer = nil;
     vector<id<MTLBuffer>> uvBuffers;
     
     inline id<MTLBuffer> PrepareBuffer(void *array, size_t elementSize, string *name);
