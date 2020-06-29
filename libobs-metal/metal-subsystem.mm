@@ -410,6 +410,11 @@ void device_load_vertexshader(gs_device_t *device,
     device->pipelineStateChanged = true;
 }
 
+void device_clear_textures(gs_device_t *device)
+{
+    memset(device->currentTextures, 0, sizeof(device->currentTextures));
+}
+
 void device_load_pixelshader(gs_device_t *device,
                              gs_shader_t *pixelshader)
 {
@@ -429,8 +434,7 @@ void device_load_pixelshader(gs_device_t *device,
         ps->GetPixelShaderSamplerStates(states);
     }
     
-    // Clear textures. may not be needed?
-    memset(device->currentTextures, 0, sizeof(device->currentTextures));
+    device_clear_textures(device);
     
     device->currentPixelShader = ps;
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++)
@@ -676,8 +680,7 @@ void device_begin_frame(gs_device_t *device)
 
 void device_begin_scene(gs_device_t *device)
 {
-    // clear textures
-    memset(device->currentTextures, 0, sizeof(device->currentTextures));
+    device_clear_textures(device);
     
     device->commandBuffer = [device->commandQueue commandBuffer];
 }
@@ -933,25 +936,28 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
         if (!currentPixelShader)
             throw "No pixel shader specified";
 
-        if (!currentVertexBuffer)
+        if (!currentVertexBuffer && (numVerts == 0))
             throw "No vertex buffer specified";
 
-        if (!currentRenderTarget)
-            throw "No render target to render to";
+        if (!currentRenderTarget && !currentSwapChain)
+            throw "No active swap chain or render target";
 
     } catch (const char *error) {
         blog(LOG_ERROR, "device_draw (Metal): %s", error);
         return;
     }
+    
+    NSError *error = nil;
 
     if (renderPipelineState == nil || pipelineStateChanged) {
-        NSError *error = nil;
+        
         renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
                                renderPipelineDescriptor error:&error];
 
         if (renderPipelineState == nil) {
             blog(LOG_ERROR, "device_draw (Metal): %s",
                  error.localizedDescription.UTF8String);
+            
             return;
         }
 
@@ -989,6 +995,7 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 
         [commandEncoder endEncoding];
     }
+    [error dealloc];
 }
 
 void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,

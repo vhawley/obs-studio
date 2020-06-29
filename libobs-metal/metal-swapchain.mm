@@ -25,10 +25,8 @@ gs_texture *gs_swap_chain::CurrentTarget()
 
 void gs_swap_chain::SetNextTarget()
 {
-    if (drawable == nil) {
-        drawable = [metalLayer nextDrawable];
-        target = new gs_texture(device, [drawable texture]);
-    }
+    drawable = [metalLayer nextDrawable];
+    target = new gs_texture(device, [drawable texture]);
 }
 
 void gs_swap_chain::Resize(uint32_t cx, uint32_t cy)

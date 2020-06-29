@@ -3038,11 +3038,11 @@ void OBSBasicSettings::SaveAdvancedSettings()
 	QString lastMonitoringDevice = config_get_string(
 		main->Config(), "Audio", "MonitoringDeviceId");
 
-#ifdef _WIN32
+
 	if (WidgetChanged(ui->renderer))
 		config_set_string(App()->GlobalConfig(), "Video", "Renderer",
 				  QT_TO_UTF8(ui->renderer->currentText()));
-
+#ifdef _WIN32
 	std::string priority =
 		QT_TO_UTF8(ui->processPriority->currentData().toString());
 	config_set_string(App()->GlobalConfig(), "General", "ProcessPriority",

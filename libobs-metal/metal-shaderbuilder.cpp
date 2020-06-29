@@ -515,6 +515,8 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
                 if (mapping != nil)
                     output << ", " << mapping;
                 output << "]]";
+            } else if (mapping != nil && strcmp("position", mapping) == 0) {
+                output << " [[position]]";
             }
 
             output << ';' << endl;

@@ -446,11 +446,11 @@ struct ZStencilState {
 };
 
 struct gs_device {
-    id<MTLDevice> metalDevice;
-    id<MTLRenderPipelineState> renderPipelineState;
-    id<MTLDepthStencilState> depthStencilState;
-    id<MTLCommandQueue> commandQueue;
-    id<MTLCommandBuffer> commandBuffer;
+    id<MTLDevice> metalDevice = nil;
+    id<MTLRenderPipelineState> renderPipelineState = nil;
+    id<MTLDepthStencilState> depthStencilState = nil;
+    id<MTLCommandQueue> commandQueue = nil;
+    id<MTLCommandBuffer> commandBuffer = nil;
     
     uint32_t deviceIndex;
     gs_swap_chain *currentSwapChain = nil;
