@@ -72,6 +72,9 @@
  void gs_vertex_buffer::MakeBufferList(gs_vertex_shader *shader,
        vector<id<MTLBuffer>> &buffers)
 {
+    if (isDynamic) {
+        InitBuffers();
+    }
    PushBuffer(buffers, vertexBuffer, "point");
    if (shader->hasNormals)
        PushBuffer(buffers, normalBuffer, "normal");

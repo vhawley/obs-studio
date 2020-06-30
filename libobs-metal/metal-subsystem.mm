@@ -916,7 +916,7 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 //                                       pipelineDescriptor error:&errors];
 //
 //    if (currentSwapChain != nil) {
-//        renderPassDescriptor.colorAttachments[0].texture = this->currentSwapChain->nextDrawable.texture;
+//        renderPassDescriptor.colorAttachments[0].texture = this->currentSwapChain->drawable.texture;
 //    }
 //    renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
 //    renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.8,0.0,0.0,1.0);
