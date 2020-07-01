@@ -36,7 +36,7 @@ struct gs_object {
     gs_object_type objectType;
     
     gs_object *nextObject;
-    gs_object *previousObject;
+    gs_object **previousNextObject;
     
     gs_object(gs_device_t *device, gs_object_type type);
     ~gs_object();
@@ -456,8 +456,8 @@ struct gs_device {
     gs_swap_chain *currentSwapChain = nil;
     gs_vertex_buffer *currentVertexBuffer  = nil;
     gs_index_buffer *currentIndexBuffer  = nil;
-    gs_texture *currentTextures[GS_MAX_TEXTURES];
-    gs_sampler_state *currentSamplers[GS_MAX_TEXTURES];
+    gs_texture *currentTextures[GS_MAX_TEXTURES] = {};
+    gs_sampler_state *currentSamplers[GS_MAX_TEXTURES] = {};
     gs_vertex_shader *currentVertexShader  = nil;
     gs_pixel_shader *currentPixelShader  = nil;
     gs_texture *preserveClearTarget = nil;

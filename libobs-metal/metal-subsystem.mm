@@ -426,8 +426,7 @@ void device_load_pixelshader(gs_device_t *device,
         return;
     
     id<MTLFunction> function = nil;
-    gs_sampler_state *states[GS_MAX_TEXTURES];
-    memset(states, 0, sizeof(states));
+    gs_sampler_state *states[GS_MAX_TEXTURES] = {};
     
     if (pixelshader) {
         function = ps->metalFunction;
@@ -842,11 +841,12 @@ struct Vertex {
     }
 };
 
+static inline void printMatrix(matrix4 matrix, string name) {
+    blog(LOG_DEBUG, "%s matrix: [%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f]", name.c_str(), matrix.x.x, matrix.x.y, matrix.x.z, matrix.x.w, matrix.y.x,matrix.y.y, matrix.y.z, matrix.y.w, matrix.z.x, matrix.z.y, matrix.z.z, matrix.z.w, matrix.t.x, matrix.t.y, matrix.t.z, matrix.t.w);
+}
+
 void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVerts)
 {
-//
-//
-//
 //        MTLSamplerDescriptor *samplerDesc = [[MTLSamplerDescriptor alloc] init];
 //        samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
 //        samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
@@ -923,13 +923,22 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 //
 //    id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
 //
+//
+//    MTLViewport ret;
+//    ret.originX = 200;
+//    ret.originY = 100;
+//    ret.width   = 2000;
+//    ret.height  = 800;
+//    ret.znear   = 0;
+//    ret.zfar    = 1.0;
+//    [commandEncoder setViewport:ret];
 //    [commandEncoder setFragmentSamplerState:samplerState atIndex:0];
 //
 //        [commandEncoder setRenderPipelineState:renderPipelineState];
 //        [commandEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
 //        [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:6 indexType:MTLIndexTypeUInt16 indexBuffer:indexBuffer indexBufferOffset:0];
-//            [commandEncoder endEncoding];
-
+//        [commandEncoder endEncoding];
+//
     try {
         if (!currentVertexShader)
             throw "No vertex shader specified";
@@ -946,18 +955,18 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
         blog(LOG_ERROR, "device_draw (Metal): %s", error);
         return;
     }
-    
-    NSError *error = nil;
+
+    NSError *error;
 
     if (renderPipelineState == nil || pipelineStateChanged) {
-        
+
         renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
                                renderPipelineDescriptor error:&error];
 
         if (renderPipelineState == nil) {
             blog(LOG_ERROR, "device_draw (Metal): %s",
                  error.localizedDescription.UTF8String);
-            
+
             return;
         }
 
@@ -980,11 +989,27 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
             if (effect)
                 gs_effect_update_params(effect);
 
+
+
             LoadRasterState(commandEncoder);
             LoadZStencilState(commandEncoder);
             UpdateViewProjMatrix();
             currentVertexShader->UploadParams(commandEncoder);
             currentPixelShader->UploadParams(commandEncoder);
+
+//            if (currentVertexBuffer) {
+//                for (int i = 0; i < currentVertexBuffer->vbData->num; i++) {
+//                    blog(LOG_DEBUG, "vb data #%d:, %f %f %f", i, currentVertexBuffer->vbData->points[i].x, currentVertexBuffer->vbData->points[i].y, currentVertexBuffer->vbData->points[i].z);
+//                }
+//
+//                blog(LOG_DEBUG, "vertex shader: %s", currentVertexShader->metalShader.c_str());
+//                blog(LOG_DEBUG, "pixel shader: %s", currentPixelShader->metalShader.c_str());
+//
+//                printMatrix(currentViewMatrix, "current view");
+//                printMatrix(currentProjectionMatrix, "current projection");
+//                printMatrix(currentViewProjectionMatrix, "current view projection");
+//            }
+
             UploadVertexBuffer(commandEncoder);
             UploadTextures(commandEncoder);
             UploadSamplers(commandEncoder);
@@ -995,7 +1020,6 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 
         [commandEncoder endEncoding];
     }
-    [error dealloc];
 }
 
 void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
@@ -1948,22 +1972,21 @@ void gs_device::RebuildDevice() {
     }
 }
 
-gs_object::gs_object(gs_device_t *device, gs_object_type type) :
-device(device),
-objectType(type)
-{
-    previousObject = nil;
-    nextObject = device->firstObject;
-    if (nextObject) {
-        nextObject->previousObject = this;
-    }
-    device->firstObject = this;
-}
+gs_object::gs_object(gs_device_t *device_, gs_object_type type) :
+     device   (device_),
+     objectType (type)
+ {
+     previousNextObject = &device->firstObject;
+     nextObject = device->firstObject;
+     device->firstObject = this;
+     if (nextObject)
+         nextObject->previousNextObject = &nextObject;
+ }
 
- gs_object::~gs_object()
-{
-   if (nextObject)
-       nextObject->previousObject = previousObject;
-   if (previousObject)
-       previousObject->nextObject = nextObject;
-}
+gs_object::~gs_object()
+ {
+     if (previousNextObject)
+         *previousNextObject = nextObject;
+     if (nextObject)
+         nextObject->previousNextObject = previousNextObject;
+ }

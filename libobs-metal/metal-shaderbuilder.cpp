@@ -499,7 +499,6 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
             output << ';' << endl;
         }
         output << "};" << endl << endl;
-        delete vertPrefix;
     } else {
         output << "struct " << str->name << " {" << endl;
         size_t attributeId = 0;
@@ -523,7 +522,7 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
         }
         output << "};" << endl << endl;
     }
-	
+    delete vertPrefix;
 }
 
 inline void ShaderBuilder::WriteStructs()
