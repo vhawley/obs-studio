@@ -1634,6 +1634,8 @@ gs_voltexture_get_color_format(const gs_texture_t *voltex)
 void gs_stagesurface_destroy(gs_stagesurf_t *stagesurf)
 {
     assert(stagesurf->objectType == GS_STAGE_SURFACE);
+    if (stagesurf->device->currentStageSurface == stagesurf)
+        stagesurf->device->currentStageSurface = nullptr;
     delete stagesurf;
 }
 
@@ -1681,9 +1683,6 @@ bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
 void gs_stagesurface_unmap(gs_stagesurf_t *stagesurf)
 {
     assert(stagesurf->objectType == GS_STAGE_SURFACE);
-    
-//    stagesurf->device->currentStageSurface = nil;
-//    delete stagesurf;
 }
 
 void gs_zstencil_destroy(gs_zstencil_t *zstencil)
