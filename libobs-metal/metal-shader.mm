@@ -133,7 +133,7 @@ void gs_shader::Compile()
     NSError *errors;
     id<MTLLibrary> lib = [device->metalDevice newLibraryWithSource:nsShaderString
                                                            options:metalCompileOptions error:&errors];
-    [nsShaderString dealloc];
+    [nsShaderString release];
     
     if (lib == nil) {
         blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
@@ -173,7 +173,7 @@ inline void gs_shader::UpdateParam(uint8_t *data, gs_shader_param &param)
        if (param.nextSampler) {
            device_load_samplerstate(device, param.nextSampler,
                    param.textureID);
-           param.nextSampler = nil;
+           param.nextSampler = nullptr;
        }
    }
 }
@@ -203,18 +203,18 @@ void gs_shader::UploadParams(id<MTLRenderCommandEncoder> commandEncoder)
 
 void gs_shader_destroy(gs_shader_t *shader)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
     
     if (shader->device->lastVertexShader == shader)
-        shader->device->lastVertexShader = nil;
+        shader->device->lastVertexShader = nullptr;
     
     delete shader;
 }
 
 int gs_shader_get_num_params(const gs_shader_t *shader)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
 
     return (int)shader->params.size();
@@ -223,7 +223,7 @@ int gs_shader_get_num_params(const gs_shader_t *shader)
 gs_sparam_t *gs_shader_get_param_by_idx(gs_shader_t *shader,
                                         uint32_t param)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
 
     return &shader->params[param];
@@ -232,7 +232,7 @@ gs_sparam_t *gs_shader_get_param_by_idx(gs_shader_t *shader,
 gs_sparam_t *gs_shader_get_param_by_name(gs_shader_t *shader,
                                          const char *name)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
     for (size_t i = 0; i < shader->params.size(); i++) {
          gs_shader_param &param = shader->params[i];
@@ -240,25 +240,25 @@ gs_sparam_t *gs_shader_get_param_by_name(gs_shader_t *shader,
              return &param;
      }
 
-      return nil;
+      return nullptr;
 }
 
 gs_sparam_t *gs_shader_get_viewproj_matrix(const gs_shader_t *shader)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
     if (shader->shaderType != GS_SHADER_VERTEX)
-         return nil;
+         return nullptr;
 
     return static_cast<const gs_vertex_shader*>(shader)->viewProjectionMatrix;
 }
 
 gs_sparam_t *gs_shader_get_world_matrix(const gs_shader_t *shader)
 {
-    assert(shader != nil);
+    assert(shader != nullptr);
     assert(shader->objectType == GS_SHADER);
     if (shader->shaderType != GS_SHADER_VERTEX)
-         return nil;
+         return nullptr;
     
     return static_cast<const gs_vertex_shader*>(shader)->worldMatrix;
 }

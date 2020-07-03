@@ -163,7 +163,7 @@ static inline const char *GetType(const string &type)
 	} else if (type.compare(0, 8, "min12int") == 0)
 		throw "min12int* is not supported in Metal";
 
-	return nil;
+	return nullptr;
 }
 
 static inline const char *GetCompilerValue(const string &type)
@@ -171,7 +171,7 @@ static inline const char *GetCompilerValue(const string &type)
     if (type == "obs_glsl_compile")
         return "false";
 
-    return nil;
+    return nullptr;
 }
 
 static inline bool RequiresTypeConversion(const string &type)
@@ -227,14 +227,14 @@ static inline string *VertInOutPrefix(string value) {
         }
     }
     
-    return nil;
+    return nullptr;
 };
 
 inline void ShaderBuilder::WriteType(const char *rawType)
 {
 	string type(rawType);
 	const char *newType = GetType(string(rawType));
-	output << (newType != nil ? newType : type);
+	output << (newType != nullptr ? newType : type);
 }
 
 inline bool ShaderBuilder::WriteTypeToken(struct cf_token *token)
@@ -247,10 +247,11 @@ inline bool ShaderBuilder::WriteTypeToken(struct cf_token *token)
             output << *vertPrefix << "VertexOut";
             return true;
         }
+        delete vertPrefix;
     }
     
 	const char *newType = GetType(type);
-	if (newType == nil)
+	if (newType == nullptr)
 		return false;
 
 	output << newType;
@@ -276,8 +277,8 @@ inline void ShaderBuilder::WriteVariable(const shader_var *var)
 
 static inline const char *GetMapping(const char *rawMapping)
 {
-	if (rawMapping == nil)
-		return nil;
+	if (rawMapping == nullptr)
+		return nullptr;
 
 	string mapping(rawMapping);
 	if (mapping == "POSITION")
@@ -285,7 +286,7 @@ static inline const char *GetMapping(const char *rawMapping)
 	if (mapping == "COLOR")
 		return "color(0)";
 
-	return nil;
+	return nullptr;
 }
 
 inline void ShaderBuilder::WriteVariables()
@@ -312,7 +313,7 @@ inline void ShaderBuilder::WriteVariables()
 			WriteVariable(var);
 
 			const char* mapping = GetMapping(var->mapping);
-			if (mapping != nil)
+			if (mapping != nullptr)
 				output << " [[" << mapping << "]]";
 
 			output << ';' << endl;
@@ -493,7 +494,7 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
             WriteVariable(var);
 
             const char* mapping = GetMapping(var->mapping);
-            if (mapping != nil && strcmp(mapping, "color(0)"))
+            if (mapping != nullptr && strcmp(mapping, "color(0)"))
                 output << "[[" << mapping << "]]";
 
             output << ';' << endl;
@@ -511,10 +512,10 @@ inline void ShaderBuilder::WriteStruct(const shader_struct *str)
             const char* mapping = GetMapping(var->mapping);
             if (isVertexShader()) {
                 output << " [[attribute(" << attributeId++ << ")";
-                if (mapping != nil)
+                if (mapping != nullptr)
                     output << ", " << mapping;
                 output << "]]";
-            } else if (mapping != nil && strcmp("position", mapping) == 0) {
+            } else if (mapping != nullptr && strcmp("position", mapping) == 0) {
                 output << " [[position]]";
             }
 
@@ -584,7 +585,7 @@ inline bool ShaderBuilder::WriteCompilerVariable(struct cf_token *token)
 {
     string variable(token->str.array, token->str.len);
     const char *value = GetCompilerValue(variable);
-    if (value == nil)
+    if (value == nullptr)
         return false;
 
     output << value;
@@ -716,7 +717,7 @@ inline struct shader_var *ShaderBuilder::GetVariable(struct cf_token *token)
 			return var;
 	}
 
-	return nil;
+	return nullptr;
 }
 
 inline bool ShaderBuilder::WriteIntrinsic(struct cf_token *&token)
@@ -737,7 +738,7 @@ inline bool ShaderBuilder::WriteIntrinsic(struct cf_token *&token)
 		written = WriteMul(token);
 	else {
 		struct shader_var *var = GetVariable(token);
-		if (var != nil && astrcmp_n(var->type, "texture", 7) == 0)
+		if (var != nullptr && astrcmp_n(var->type, "texture", 7) == 0)
 			written = WriteTextureCode(token, var);
 		else
 			written = false;
@@ -878,7 +879,7 @@ inline struct shader_struct *ShaderBuilder::GetStruct(char *name)
             return var;
     }
 
-    return nil;
+    return nullptr;
 }
 
 inline char *ShaderBuilder::GetStructValueDataType(struct shader_struct *obj, struct cf_token *token)
@@ -890,13 +891,13 @@ inline char *ShaderBuilder::GetStructValueDataType(struct shader_struct *obj, st
             return var->type;
     }
 
-    return nil;
+    return nullptr;
 }
 
 inline struct shader_var *ShaderBuilder::GetFunctionParam(struct cf_token *token)
 {
-    if (currentFunc == nil)
-        return nil;
+    if (currentFunc == nullptr)
+        return nullptr;
     
     for (struct shader_var *var = currentFunc->params.array;
          var != currentFunc->params.array + currentFunc->params.num;
@@ -905,7 +906,7 @@ inline struct shader_var *ShaderBuilder::GetFunctionParam(struct cf_token *token
             return var;
     }
 
-    return nil;
+    return nullptr;
 }
 
 inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const char *initializerType) {
@@ -930,18 +931,18 @@ inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const c
             }
         } else if (token->type == CFTOKEN_NAME) {
             shader_var *var = GetFunctionParam(token);
-            if (var == nil)
+            if (var == nullptr)
                 GetVariable(token);
 
-            if (var != nil) {
+            if (var != nullptr) {
                 // try to get primitive type first
                 const char *primitive = GetType(var->type);
-                while (primitive == nil) {
+                while (primitive == nullptr) {
                     buffer.write(token->str.array, token->str.len);
 
                     // attempt to get struct type if not primitive
                     shader_struct *struct_var = GetStruct(var->type);
-                    if (struct_var == nil)
+                    if (struct_var == nullptr)
                         break;
                     
                     // get next token and write to buffer
@@ -997,7 +998,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 
 	bool dot = false;
 	bool cmp = false;
-    char *initializerType = nil;
+    char *initializerType = nullptr;
 	while (token->type != CFTOKEN_NONE) {
 		token++;
 
@@ -1005,7 +1006,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 			break;
 
 		if (token->type == CFTOKEN_NAME) {
-            initializerType = nil;
+            initializerType = nullptr;
 			if (!WriteTypeToken(token) && !WriteIntrinsic(token) && !WriteCompilerVariable(token) &&
 			    (dot || !WriteConstantVariable(token))) {
 				if (dot)
@@ -1053,25 +1054,25 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
             }
 		} else if (token->type == CFTOKEN_OTHER) {
             if (*token->str.array == '{') {
-                initializerType = nil;
+                initializerType = nullptr;
                 WriteFunctionContent(token, "}");
             }
 			else if (*token->str.array == '(') {
-                if (initializerType != nil) {
+                if (initializerType != nullptr) {
                     WriteTypeInitializer(token, initializerType);
-                    initializerType = nil;
+                    initializerType = nullptr;
                 } else {
                     WriteFunctionContent(token, ")");
                     WriteFunctionAdditionalParam(temp);
                 }
             } else if (*token->str.array == '.') {
-                initializerType = nil;
+                initializerType = nullptr;
                 dot = true;
             }
 
 			output.write(token->str.array, token->str.len);
         } else {
-            initializerType = nil;
+            initializerType = nullptr;
             output.write(token->str.array, token->str.len);
         }
 			
@@ -1227,7 +1228,7 @@ inline void ShaderBuilder::WriteFunction(const shader_func *func)
 	token = func->start;
     currentFunc = const_cast<shader_func *>(func);
 	WriteFunctionContent(token, "}");
-    currentFunc = nil;
+    currentFunc = nullptr;
     
 	output << '}' << endl << endl;
 }

@@ -38,6 +38,13 @@ struct gs_object {
     gs_object *nextObject;
     gs_object **previousNextObject;
     
+    inline gs_object() :
+        device (nullptr),
+        nextObject (nullptr),
+        previousNextObject (nullptr)
+    {
+    }
+    
     gs_object(gs_device_t *device, gs_object_type type);
     ~gs_object();
 };
@@ -101,7 +108,7 @@ struct gs_shader_param {
     const gs_shader_param_type type;
     const int                  arrayCount;
     
-    struct gs_sampler_state    *nextSampler = nil;
+    struct gs_sampler_state    *nextSampler = nullptr;
     
     uint32_t                   textureID;
     size_t                     pos;
@@ -150,7 +157,7 @@ struct gs_pixel_shader : gs_shader {
         for (i = 0; i < samplers.size(); i++)
             states[i] = &samplers[i]->sampler;
         for (; i < GS_MAX_TEXTURES; i++)
-            states[i] = nil;
+            states[i] = nullptr;
     }
     
     gs_pixel_shader(gs_device_t *device, const char *shader, const char *file);
@@ -446,33 +453,33 @@ struct ZStencilState {
 };
 
 struct gs_device {
-    id<MTLDevice> metalDevice = nil;
-    id<MTLRenderPipelineState> renderPipelineState = nil;
-    id<MTLDepthStencilState> depthStencilState = nil;
-    id<MTLCommandQueue> commandQueue = nil;
-    id<MTLCommandBuffer> commandBuffer = nil;
+    id<MTLDevice> metalDevice;
+    id<MTLRenderPipelineState> renderPipelineState;
+    id<MTLDepthStencilState> depthStencilState;
+    id<MTLCommandQueue> commandQueue;
+    id<MTLCommandBuffer> commandBuffer;
     
     uint32_t deviceIndex;
-    gs_swap_chain *currentSwapChain = nil;
-    gs_vertex_buffer *currentVertexBuffer  = nil;
-    gs_index_buffer *currentIndexBuffer  = nil;
+    gs_swap_chain *currentSwapChain = nullptr;
+    gs_vertex_buffer *currentVertexBuffer  = nullptr;
+    gs_index_buffer *currentIndexBuffer  = nullptr;
     gs_texture *currentTextures[GS_MAX_TEXTURES] = {};
     gs_sampler_state *currentSamplers[GS_MAX_TEXTURES] = {};
-    gs_vertex_shader *currentVertexShader  = nil;
-    gs_pixel_shader *currentPixelShader  = nil;
-    gs_texture *preserveClearTarget = nil;
-    gs_stage_surface *currentStageSurface  = nil;
+    gs_vertex_shader *currentVertexShader  = nullptr;
+    gs_pixel_shader *currentPixelShader  = nullptr;
+    gs_texture *preserveClearTarget = nullptr;
+    gs_stage_surface *currentStageSurface  = nullptr;
     
     // Might be movable to swapchain?
-    MTLRenderPassDescriptor *renderPassDescriptor = nil;
-    MTLRenderPipelineDescriptor *renderPipelineDescriptor = nil;
-    gs_texture *currentRenderTarget = nil;
+    MTLRenderPassDescriptor *renderPassDescriptor;
+    MTLRenderPipelineDescriptor *renderPipelineDescriptor;
+    gs_texture *currentRenderTarget = nullptr;
     int currentRenderSide = 0;
-    gs_zstencil_buffer *currentZStencilBuffer = nil;
-    bool pipelineStateChanged;
+    gs_zstencil_buffer *currentZStencilBuffer = nullptr;
+    bool pipelineStateChanged = false;
     
-    gs_vertex_buffer *lastVertexBuffer = nil;
-    gs_vertex_shader *lastVertexShader = nil;
+    gs_vertex_buffer *lastVertexBuffer = nullptr;
+    gs_vertex_shader *lastVertexShader = nullptr;
     
     stack<pair<gs_texture *, ClearState>> clearStates;
     BlendState                  blendState;
@@ -489,7 +496,7 @@ struct gs_device {
     matrix4 currentViewProjectionMatrix;
     stack<matrix4> projectionStack;
     
-    gs_object *firstObject = nil;
+    gs_object *firstObject = nullptr;
     
     /* Create Draw Command */
     void SetClear();

@@ -1,10 +1,19 @@
 #include "metal-subsystem.hpp"
 
 gs_device::gs_device(uint32_t adapter)
-: currentRenderSide(0),
-pipelineStateChanged(false)
 {
+    matrix4_identity(&currentProjectionMatrix);
+    matrix4_identity(&currentViewMatrix);
+    matrix4_identity(&currentViewProjectionMatrix);
+    
+    renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
+    renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
+    
     InitDevice(adapter);
+    
+    commandQueue = [metalDevice newCommandQueue];
+    
+    device_set_render_target(this, nullptr, nullptr);
 }
 
 void gs_device::InitDevice(uint32_t index)
@@ -22,11 +31,6 @@ void gs_device::InitDevice(uint32_t index)
     
     if (![metalDevice supportsFeatureSet:MTLFeatureSet_macOS_GPUFamily1_v4])
         throw "Failed to initialize Metal";
-    
-    renderPassDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-    renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    commandQueue = [metalDevice newCommandQueue];
-    [metalDevices dealloc];
     
     blog(LOG_INFO, "Metal loaded successfully, feature set used: %u_v%u",
          1, 4);
@@ -48,7 +52,7 @@ const char *device_preprocessor_name(void)
 
 int device_create(gs_device_t **p_device, uint32_t adapter)
 {
-    gs_device *device = NULL;
+    gs_device *device = nullptr;
     blog(LOG_INFO, "---------------------------------");
     blog(LOG_INFO, "Initializing Metal...");
     
@@ -76,7 +80,7 @@ void device_leave_context(gs_device_t *device)
 
 void *device_get_device_obj(gs_device_t *device)
 {
-    assert(device != NULL);
+    assert(device != nullptr);
     return device->metalDevice;
 }
 
@@ -86,7 +90,7 @@ bool device_enum_adapters(
 {
     uint32_t i = 0;
     NSArray *devices = MTLCopyAllDevices();
-    if (devices == nil)
+    if (devices == nullptr)
         return false;
     
     for (id<MTLDevice> device in devices) {
@@ -94,14 +98,14 @@ bool device_enum_adapters(
             break;
     }
     
-    [devices dealloc];
+    [devices release];
     return true;
 }
 
 gs_swapchain_t *device_swapchain_create(gs_device_t *device,
                                         const struct gs_init_data *data)
 {
-    gs_swap_chain *swap_chain;
+    gs_swap_chain *swap_chain = nullptr;
     try {
         swap_chain = new gs_swap_chain(device, data);
     } catch (const char *error) {
@@ -113,7 +117,7 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 
 void device_resize(gs_device_t *device, uint32_t x, uint32_t y)
 {
-    if (device->currentSwapChain == nil) {
+    if (device->currentSwapChain == nullptr) {
         blog(LOG_WARNING, "device_resize (Metal): No active swap");
         return;
     }
@@ -181,7 +185,7 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width, uint32_
                                     enum gs_color_format color_format, uint32_t levels,
                                     const uint8_t **data, uint32_t flags)
 {
-    gs_texture *texture;
+    gs_texture *texture = nullptr;
     
     try {
         texture = new gs_texture(device, width, height, 0, color_format, levels, data, flags, GS_TEXTURE_2D);
@@ -196,7 +200,7 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
                                         enum gs_color_format color_format, uint32_t levels,
                                         const uint8_t **data, uint32_t flags)
 {
-    gs_texture *texture;
+    gs_texture *texture = nullptr;
     
     try {
         texture = new gs_texture(device, size, size, 0, color_format, levels, data, flags, GS_TEXTURE_CUBE);
@@ -212,7 +216,7 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
                                        uint32_t levels, const uint8_t *const *data,
                                        uint32_t flags)
 {
-    gs_texture *texture;
+    gs_texture *texture = nullptr;
     
     try {
         texture = new gs_texture(device, width, height, depth, color_format, levels, const_cast<const uint8_t **>(data), flags, GS_TEXTURE_3D);
@@ -226,7 +230,7 @@ gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint
 gs_zstencil_t *device_zstencil_create(gs_device_t *device,
                                       uint32_t width, uint32_t height, enum gs_zstencil_format format)
 {
-    gs_zstencil_buffer *buffer;
+    gs_zstencil_buffer *buffer = nullptr;
     try {
         buffer = new gs_zstencil_buffer(device, width, height, format);
     } catch (const char *error) {
@@ -239,7 +243,7 @@ gs_zstencil_t *device_zstencil_create(gs_device_t *device,
 gs_stagesurf_t *
 device_stagesurface_create(gs_device_t *device, uint32_t width, uint32_t height, enum gs_color_format color_format)
 {
-    gs_stage_surface *stagesurf;
+    gs_stage_surface *stagesurf = nullptr;
     
     try {
         stagesurf = new gs_stage_surface(device, width, height, color_format);
@@ -253,7 +257,7 @@ device_stagesurface_create(gs_device_t *device, uint32_t width, uint32_t height,
 gs_samplerstate_t *
 device_samplerstate_create(gs_device_t *device, const struct gs_sampler_info *info)
 {
-    gs_sampler_state *sampler_state;
+    gs_sampler_state *sampler_state = nullptr;
     
     try {
         sampler_state = new gs_sampler_state(device, info);
@@ -269,7 +273,7 @@ gs_shader_t *device_vertexshader_create(gs_device_t *device,
                                         const char *file,
                                         char **error_string)
 {
-    gs_vertex_shader *vertex_shader;
+    gs_vertex_shader *vertex_shader = nullptr;
     
     try {
         vertex_shader = new gs_vertex_shader(device, shader, file);
@@ -286,7 +290,7 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device,
                                        const char *file,
                                        char **error_string)
 {
-    gs_pixel_shader *pixel_shader;
+    gs_pixel_shader *pixel_shader = nullptr;
     
     try {
         pixel_shader = new gs_pixel_shader(device, shader, file);
@@ -300,7 +304,7 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device,
 
 gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device, struct gs_vb_data *data, uint32_t flags)
 {
-    gs_vertex_buffer *buffer;
+    gs_vertex_buffer *buffer = nullptr;
     try {
         buffer = new gs_vertex_buffer(device, data, flags);
     } catch (const char *error) {
@@ -315,7 +319,7 @@ gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
                                             void *indices, size_t num,
                                             uint32_t flags)
 {
-    gs_index_buffer *buffer;
+    gs_index_buffer *buffer = nullptr;
     try {
         buffer = new gs_index_buffer(device, type, indices, num, flags);
     } catch (const char *error) {
@@ -340,6 +344,7 @@ gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 
 enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
 {
+    assert(texture != nullptr);
     assert(texture->objectType == GS_TEXTURE);
     return texture->textureType;
 }
@@ -347,7 +352,7 @@ enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
 void device_load_vertexbuffer(gs_device_t *device,
                               gs_vertbuffer_t *vertbuffer)
 {
-    assert(device != NULL);
+    assert(device != nullptr);
     if (device->currentVertexBuffer != vertbuffer)
         device->currentVertexBuffer = vertbuffer;
 }
@@ -355,7 +360,7 @@ void device_load_vertexbuffer(gs_device_t *device,
 void device_load_indexbuffer(gs_device_t *device,
                              gs_indexbuffer_t *indexbuffer)
 {
-    assert(device != NULL);
+    assert(device != nullptr);
     if (device->currentIndexBuffer != indexbuffer)
         device->currentIndexBuffer = indexbuffer;
 }
@@ -373,7 +378,7 @@ void device_load_texture(gs_device_t *device, gs_texture_t *tex,
 void device_load_samplerstate(gs_device_t *device,
                               gs_samplerstate_t *samplerstate, int unit)
 {
-    assert(device != nil);
+    assert(device != nullptr);
     assert(unit >= 0);
     assert(unit < GS_MAX_TEXTURES);
     if (device->currentSamplers[unit] != samplerstate)
@@ -466,7 +471,7 @@ gs_texture_t *device_get_render_target(const gs_device_t *device)
 {
     if (device->currentSwapChain &&
         device->currentRenderTarget == device->currentSwapChain->CurrentTarget())
-        return nil;
+        return nullptr;
     
     return device->currentRenderTarget;
 }
@@ -719,7 +724,7 @@ void gs_device::SetClear()
     if (clearStates.size())
         preserveClearTarget = clearStates.top().first;
     else
-        preserveClearTarget = nil;
+        preserveClearTarget = nullptr;
 }
 
 void gs_device::UploadVertexBuffer(id<MTLRenderCommandEncoder> commandEncoder)
@@ -750,7 +755,9 @@ void gs_device::UploadVertexBuffer(id<MTLRenderCommandEncoder> commandEncoder)
 void gs_device::UploadTextures(id<MTLRenderCommandEncoder> commandEncoder)
 {
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
-        if (currentTextures[i] == nil)
+        if (currentTextures[i] == nullptr)
+            break;
+        if (currentTextures[i]->textureType != GS_TEXTURE_2D)
             break;
         
         [commandEncoder setFragmentTexture:currentTextures[i]->metalTexture atIndex:i];
@@ -761,7 +768,7 @@ void gs_device::UploadSamplers(id<MTLRenderCommandEncoder> commandEncoder)
 {
     for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
         gs_sampler_state *sampler = currentSamplers[i];
-        if (sampler == nil)
+        if (sampler == nullptr)
             break;
         
         [commandEncoder setFragmentSamplerState:sampler->samplerState
@@ -1101,13 +1108,13 @@ void device_load_swapchain(gs_device_t *device,
         device->renderPassDescriptor.colorAttachments[0].texture = device->currentSwapChain->drawable.texture;
         device->renderPipelineDescriptor.colorAttachments[0].pixelFormat = device->currentSwapChain->metalLayer.pixelFormat;
     } else {
-        device->currentSwapChain = nil;
-        device->currentRenderTarget = nil;
+        device->currentSwapChain = nullptr;
+        device->currentRenderTarget = nullptr;
         device->renderPassDescriptor.colorAttachments[0].texture = nil;
     }
     
     device->currentRenderSide = 0;
-    device->currentZStencilBuffer = nil;
+    device->currentZStencilBuffer = nullptr;
     device->renderPassDescriptor.depthAttachment.texture = nil;
     device->renderPassDescriptor.stencilAttachment.texture = nil;
     
@@ -1165,7 +1172,7 @@ void device_flush(gs_device_t *device)
         
         if (device->currentStageSurface) {
             device->currentStageSurface->DownloadTexture();
-            device->currentStageSurface = nil;
+            device->currentStageSurface = nullptr;
         }
     }
 }
@@ -1427,7 +1434,7 @@ void device_get_viewport(const gs_device_t *device,
 void device_set_scissor_rect(gs_device_t *device,
                              const struct gs_rect *rect)
 {
-    if (rect != nil) {
+    if (rect != nullptr) {
         device->rasterState.scissorEnabled = true;
         device->rasterState.scissorRect    = *rect;
         device->rasterState.mtlScissorRect =
@@ -1675,8 +1682,8 @@ void gs_stagesurface_unmap(gs_stagesurf_t *stagesurf)
 {
     assert(stagesurf->objectType == GS_STAGE_SURFACE);
     
-    stagesurf->device->currentStageSurface = nil;
-    delete stagesurf;
+//    stagesurf->device->currentStageSurface = nil;
+//    delete stagesurf;
 }
 
 void gs_zstencil_destroy(gs_zstencil_t *zstencil)
@@ -1694,7 +1701,7 @@ void gs_samplerstate_destroy(gs_samplerstate_t *samplerstate)
         for (size_t i = 0; i < GS_MAX_TEXTURES; i++)
             if (samplerstate->device->currentSamplers[i] ==
                 samplerstate)
-                samplerstate->device->currentSamplers[i] = nil;
+                samplerstate->device->currentSamplers[i] = nullptr;
     }
     
     delete samplerstate;
@@ -1705,7 +1712,7 @@ void gs_vertexbuffer_destroy(gs_vertbuffer_t *vertbuffer)
     assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
     
     if (vertbuffer->device->lastVertexBuffer == vertbuffer)
-        vertbuffer->device->lastVertexBuffer = nil;
+        vertbuffer->device->lastVertexBuffer = nullptr;
     
     delete vertbuffer;
 }
@@ -1945,22 +1952,22 @@ void gs_device::RebuildDevice() {
             obj = obj->nextObject;
         }
         
-        currentRenderTarget = nil;
+        currentRenderTarget = nullptr;
         currentRenderSide = 0;
-        currentZStencilBuffer = nil;
+        currentZStencilBuffer = nullptr;
         memset(&currentTextures, 0, sizeof(currentTextures));
         memset(&currentSamplers, 0, sizeof(currentSamplers));
-        currentVertexBuffer = nil;
-        currentIndexBuffer = nil;
-        currentVertexShader = nil;
-        currentPixelShader = nil;
-        currentSwapChain = nil;
-        currentStageSurface = nil;
+        currentVertexBuffer = nullptr;
+        currentIndexBuffer = nullptr;
+        currentVertexShader = nullptr;
+        currentPixelShader = nullptr;
+        currentSwapChain = nullptr;
+        currentStageSurface = nullptr;
         
-        lastVertexBuffer = nil;
-        lastVertexShader = nil;
+        lastVertexBuffer = nullptr;
+        lastVertexShader = nullptr;
         
-        preserveClearTarget = nil;
+        preserveClearTarget = nullptr;
         while (clearStates.size())
             clearStates.pop();
         

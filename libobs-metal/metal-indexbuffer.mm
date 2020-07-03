@@ -37,7 +37,7 @@ void gs_index_buffer::PrepareBuffer(void *new_indices)
 {
     assert(isDynamic);
     
-    if (indices != nil && indices != new_indices) {
+    if (indices != nullptr && indices != new_indices) {
         bfree(indices);
         indices = new_indices;
     }
