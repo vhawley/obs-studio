@@ -32,10 +32,14 @@ gs_texture::gs_texture(gs_device_t *device, id<MTLTexture> texture)
 : gs_object(device, GS_TEXTURE),
 width((uint32_t)texture.width),
 height((uint32_t)texture.height),
+depth(0),
+colorFormat(ConvertMTLTextureFormat(texture.pixelFormat)),
+levels(texture.mipmapLevelCount),
 isRenderTarget(false),
 isDynamic(false),
 isShared(true),
 genMipmaps(false),
+textureType(GS_TEXTURE_2D),
 metalTexture (texture),
 metalPixelFormat(texture.pixelFormat)
 {

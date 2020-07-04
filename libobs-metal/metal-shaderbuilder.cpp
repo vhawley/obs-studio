@@ -78,7 +78,7 @@ private:
 	bool WriteIntrinsic(struct cf_token *&token);
 	void WriteFunctionAdditionalParam(string funcionName);
     void WriteFunctionContent(struct cf_token *&token, const char *end);
-    void WriteTypeInitializer(struct cf_token *&token, const char *initializerType);
+    void WriteTypeInitializer(struct cf_token *&token, const string &initializerType);
 	void WriteSamplerParamDelimitter(bool &first);
 	void WriteSamplerFilter(enum gs_sample_filter filter, bool &first);
 	void WriteSamplerAddress(enum gs_address_mode address,
@@ -909,7 +909,7 @@ inline struct shader_var *ShaderBuilder::GetFunctionParam(struct cf_token *token
     return nullptr;
 }
 
-inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const char *initializerType) {
+inline void ShaderBuilder::WriteTypeInitializer(struct cf_token *&token, const string &initializerType) {
     
     output.write(token->str.array, token->str.len);
     
@@ -1029,7 +1029,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
             // check for type conversion
             string name(token->str.array, token->str.len);
             if (RequiresTypeConversion(name)) {
-                initializerType = (char *)name.c_str();
+                initializerType = strdup(name.c_str());
             }
             
             // check for float3->float4 output padding on pixel shaders
@@ -1060,6 +1060,7 @@ inline void ShaderBuilder::WriteFunctionContent(struct cf_token *&token, const c
 			else if (*token->str.array == '(') {
                 if (initializerType != nullptr) {
                     WriteTypeInitializer(token, initializerType);
+                    delete initializerType;
                     initializerType = nullptr;
                 } else {
                     WriteFunctionContent(token, ")");

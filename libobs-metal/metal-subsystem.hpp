@@ -50,11 +50,11 @@ struct gs_object {
 };
 
 struct gs_swap_chain : gs_object {
-    gs_init_data *initData = nil;
+    gs_init_data initData;
     
     NSView *view = nil;
     CAMetalLayer *metalLayer = nil;
-    gs_texture *target = nil;
+    unique_ptr<gs_texture> target;
     id<CAMetalDrawable> drawable = nil;
     uint32_t numBuffers;
     
@@ -65,7 +65,7 @@ struct gs_swap_chain : gs_object {
     
     inline void Release()
      {
-         target = nil;
+         target.reset();
          drawable = nil;
      }
      void Rebuild();
@@ -192,7 +192,6 @@ struct gs_texture : gs_object {
     uint32_t width;
     uint32_t height;
     uint32_t depth;
-    uint32_t bytes;
     gs_color_format colorFormat;
     uint32_t levels;
     vector<vector<uint8_t>> data;
@@ -547,6 +546,31 @@ static inline MTLPixelFormat ConvertGSTextureFormat(gs_color_format format)
         case GS_R8G8:        return MTLPixelFormatRG8Unorm;
     }
     return MTLPixelFormatInvalid;
+}
+
+static inline gs_color_format ConvertMTLTextureFormat(MTLPixelFormat format)
+{
+    switch ((NSUInteger)format) {
+        case MTLPixelFormatA8Unorm:       return GS_A8;
+        case MTLPixelFormatR8Unorm:       return GS_R8;
+        case MTLPixelFormatRGBA8Unorm:    return GS_RGBA;
+        case MTLPixelFormatBGRA8Unorm:    return GS_BGRA;
+        case MTLPixelFormatRGB10A2Unorm:  return GS_R10G10B10A2;
+        case MTLPixelFormatRGBA16Unorm:   return GS_RGBA16;
+        case MTLPixelFormatR16Unorm:      return GS_R16;
+        case MTLPixelFormatRGBA16Float:   return GS_RGBA16F;
+        case MTLPixelFormatRGBA32Float:   return GS_RGBA32F;
+        case MTLPixelFormatRG16Float:     return GS_RG16F;
+        case MTLPixelFormatRG32Float:     return GS_RG32F;
+        case MTLPixelFormatR16Float:      return GS_R16F;
+        case MTLPixelFormatR32Float:      return GS_R32F;
+        case MTLPixelFormatBC1_RGBA:      return GS_DXT1;
+        case MTLPixelFormatBC2_RGBA:      return GS_DXT3;
+        case MTLPixelFormatBC3_RGBA:      return GS_DXT5;
+        case MTLPixelFormatRG8Unorm:      return GS_R8G8;
+    }
+    
+    return GS_UNKNOWN;
 }
 
 static inline MTLPixelFormat ConvertGSZStencilFormat(gs_zstencil_format format)

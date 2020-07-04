@@ -333,13 +333,13 @@ gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
 gs_timer_t *device_timer_create(gs_device_t *device)
 {
     UNUSED_PARAMETER(device);
-    return NULL;
+    return nullptr;
 }
 
 gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 {
     UNUSED_PARAMETER(device);
-    return NULL;
+    return nullptr;
 }
 
 enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
@@ -1043,7 +1043,7 @@ void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
 
 inline id<MTLBuffer> gs_device::CreateBuffer(void *data, size_t length)
 {
-    length = (length + 15) & ~15;
+    // length = (length + 15) & ~15;
     
     MTLResourceOptions options = MTLResourceCPUCacheModeWriteCombined |
     MTLResourceStorageModeShared;
@@ -1154,9 +1154,9 @@ void device_present(gs_device_t *device)
     }];
     [device->commandBuffer commit];
     device->commandBuffer = nil;
-
+    
     if (device->currentSwapChain)
-        device->currentSwapChain->SetNextTarget();
+        device->currentSwapChain->Release();
 }
 
 void device_flush(gs_device_t *device)
