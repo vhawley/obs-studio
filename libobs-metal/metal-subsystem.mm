@@ -6,7 +6,7 @@ gs_device::gs_device(uint32_t adapter)
     matrix4_identity(&currentViewMatrix);
     matrix4_identity(&currentViewProjectionMatrix);
     
-    renderPassDescriptor = [[MTLRenderPassDescriptor alloc] init];
+    renderPassDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
     renderPipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
     
     InitDevice(adapter);
@@ -491,6 +491,12 @@ void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
     if (device->currentRenderTarget == tex &&
         device->currentZStencilBuffer == zstencil)
         return;
+    
+    if (tex && tex->textureType != GS_TEXTURE_2D) {
+         blog(LOG_ERROR, "device_set_render_target (Metal): "
+                         "texture is not a 2D texture");
+         return;
+     }
     
     if (tex && tex->metalTexture == nil) {
         blog(LOG_ERROR, "device_set_render_target (Metal): "
@@ -994,8 +1000,6 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
             gs_effect_t *effect = gs_get_effect();
             if (effect)
                 gs_effect_update_params(effect);
-
-
 
             LoadRasterState(commandEncoder);
             LoadZStencilState(commandEncoder);
