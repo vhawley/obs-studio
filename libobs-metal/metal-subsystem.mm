@@ -81,7 +81,7 @@ void device_leave_context(gs_device_t *device)
 void *device_get_device_obj(gs_device_t *device)
 {
     assert(device != nullptr);
-    return device->metalDevice;
+    return nullptr;
 }
 
 bool device_enum_adapters(
@@ -98,7 +98,6 @@ bool device_enum_adapters(
             break;
     }
     
-    [devices release];
     return true;
 }
 

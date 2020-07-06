@@ -133,7 +133,6 @@ void gs_shader::Compile()
     NSError *errors;
     id<MTLLibrary> lib = [device->metalDevice newLibraryWithSource:nsShaderString
                                                            options:metalCompileOptions error:&errors];
-    [nsShaderString release];
     
     if (lib == nil) {
         blog(LOG_DEBUG, "Converted shader program:\n%s\n------\n",
