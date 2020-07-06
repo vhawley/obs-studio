@@ -50,14 +50,11 @@
 #include <util/platform.h>
 #include "ui-config.h"
 
-<<<<<<< HEAD
 #ifdef __APPLE__
 #include <util/mac/mac-version.h>
 #endif
-=======
 #define ENCODER_HIDE_FLAGS \
 	(OBS_ENCODER_CAP_DEPRECATED | OBS_ENCODER_CAP_INTERNAL)
->>>>>>> master
 
 using namespace std;
 
@@ -1303,7 +1300,6 @@ void OBSBasicSettings::LoadGeneralSettings()
 
 void OBSBasicSettings::LoadRendererList()
 {
-<<<<<<< HEAD
 #if defined(_WIN32) || (defined(__APPLE__) && defined(__MAC_10_12))
 #if defined(__APPLE__)
 	struct mac_version_info ver;
@@ -1315,24 +1311,16 @@ void OBSBasicSettings::LoadRendererList()
 	
 	const char *renderer = config_get_string(GetGlobalConfig(), "Video",
 			"Renderer");
-=======
-#ifdef _WIN32
-	const char *renderer =
-		config_get_string(GetGlobalConfig(), "Video", "Renderer");
->>>>>>> master
 
 #ifdef _WIN32
 	ui->renderer->addItem(QT_UTF8("Direct3D 11"));
 #endif
 #if defined(__APPLE__) && defined(__MAC_10_12)
 	if (ver.identifier >= MACOS_SIERRA)
-		ui->renderer->addItem(QT_UTF8("Metal"));
+        ui->renderer->addItem(QT_UTF8("Metal"));
 #endif
-#ifdef _WIN32
 	if (opt_allow_opengl || strcmp(renderer, "OpenGL") == 0)
-#endif
-		ui->renderer->addItem(QT_UTF8("OpenGL"));
-
+        ui->renderer->addItem(QT_UTF8("OpenGL"));
 	int idx = ui->renderer->findText(QT_UTF8(renderer));
 	if (idx == -1)
 		idx = 0;
@@ -3108,15 +3096,11 @@ void OBSBasicSettings::SaveAdvancedSettings()
 #if defined(_WIN32) || defined(__APPLE__)
 	if (WidgetChanged(ui->renderer))
 		config_set_string(App()->GlobalConfig(), "Video", "Renderer",
-<<<<<<< HEAD
 				QT_TO_UTF8(ui->renderer->currentText()));
 #endif
-	
+    
 #ifdef _WIN32
-=======
-				  QT_TO_UTF8(ui->renderer->currentText()));
 
->>>>>>> master
 	std::string priority =
 		QT_TO_UTF8(ui->processPriority->currentData().toString());
 	config_set_string(App()->GlobalConfig(), "General", "ProcessPriority",

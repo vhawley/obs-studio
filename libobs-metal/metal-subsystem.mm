@@ -235,21 +235,12 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
 	return texture;
 }
 
-gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width,
-		uint32_t height, uint32_t depth,
-		enum gs_color_format color_format, uint32_t levels,
-		const uint8_t **data, uint32_t flags)
+gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width, uint32_t height,
+                                       uint32_t depth, enum gs_color_format color_format,
+                                       uint32_t levels, const uint8_t *const *data,
+                                       uint32_t flags)
 {
-	/* TODO */
-	UNUSED_PARAMETER(device);
-	UNUSED_PARAMETER(width);
-	UNUSED_PARAMETER(height);
-	UNUSED_PARAMETER(depth);
-	UNUSED_PARAMETER(color_format);
-	UNUSED_PARAMETER(levels);
-	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(flags);
-	return NULL;
+    return nullptr;
 }
 
 gs_zstencil_t *device_zstencil_create(gs_device_t *device, uint32_t width,
@@ -1478,4 +1469,72 @@ enum gs_index_type gs_indexbuffer_get_type(const gs_indexbuffer_t *indexbuffer)
 	assert(indexbuffer->obj_type == gs_type::gs_index_buffer);
 
 	return indexbuffer->type;
+}
+
+void *device_get_device_obj(gs_device_t *device)
+{
+    return nullptr;
+}
+
+gs_timer_t *device_timer_create(gs_device_t *device)
+{
+    UNUSED_PARAMETER(device);
+    return nullptr;
+}
+
+gs_timer_range_t *device_timer_range_create(gs_device_t *device)
+{
+    UNUSED_PARAMETER(device);
+    return nullptr;
+}
+
+void device_begin_frame(gs_device_t *device)
+{
+    // Do nothing on metal
+    UNUSED_PARAMETER(device);
+}
+
+void gs_timer_destroy(gs_timer_t *timer)
+{
+    UNUSED_PARAMETER(timer);
+}
+
+void gs_timer_begin(gs_timer_t *timer)
+{
+    UNUSED_PARAMETER(timer);
+}
+
+void gs_timer_end(gs_timer_t *timer)
+{
+    UNUSED_PARAMETER(timer);
+}
+
+bool gs_timer_get_data(gs_timer_t *timer, uint64_t *ticks)
+{
+    UNUSED_PARAMETER(timer);
+    UNUSED_PARAMETER(ticks);
+    return false;
+}
+
+void gs_timer_range_destroy(gs_timer_range_t *timer)
+{
+    UNUSED_PARAMETER(timer);
+}
+
+void gs_timer_range_begin(gs_timer_range_t *range)
+{
+    UNUSED_PARAMETER(range);
+}
+
+void gs_timer_range_end(gs_timer_range_t *range)
+{
+    UNUSED_PARAMETER(range);
+}
+
+bool gs_timer_range_get_data(gs_timer_range_t *range, bool *disjoint,
+                             uint64_t *frequency) {
+    UNUSED_PARAMETER(range);
+    UNUSED_PARAMETER(disjoint);
+    UNUSED_PARAMETER(frequency);
+    return false;
 }
