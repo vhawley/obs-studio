@@ -859,98 +859,88 @@ static inline void printMatrix(matrix4 matrix, string name) {
 
 void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVerts)
 {
-//        MTLSamplerDescriptor *samplerDesc = [[MTLSamplerDescriptor alloc] init];
-//        samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
-//        samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
-//        id<MTLSamplerState> samplerState = [metalDevice newSamplerStateWithDescriptor:samplerDesc];
+//    MTLSamplerDescriptor *samplerDesc = [[MTLSamplerDescriptor alloc] init];
+//    samplerDesc.minFilter = MTLSamplerMinMagFilterLinear;
+//    samplerDesc.magFilter = MTLSamplerMinMagFilterLinear;
+//    id<MTLSamplerState> samplerState = [metalDevice newSamplerStateWithDescriptor:samplerDesc];
 //
 //
 //
-//        //setup vertex test stuff
-//        MTLVertexDescriptor *vertDesc = [[MTLVertexDescriptor alloc] init];
-//        vertDesc.attributes[0].format = MTLVertexFormatFloat3;
-//        vertDesc.attributes[0].offset = 0;
-//        vertDesc.attributes[0].bufferIndex = 0;
+//    //setup vertex test stuff
+//    MTLVertexDescriptor *vertDesc = [[MTLVertexDescriptor alloc] init];
+//    vertDesc.attributes[0].format = MTLVertexFormatFloat3;
+//    vertDesc.attributes[0].offset = 0;
+//    vertDesc.attributes[0].bufferIndex = 0;
 //
-//        vertDesc.attributes[1].format = MTLVertexFormatFloat4;
-//        vertDesc.attributes[1].offset = sizeof(float) * 3;
-//        vertDesc.attributes[1].bufferIndex = 0;
+//    vertDesc.attributes[1].format = MTLVertexFormatFloat4;
+//    vertDesc.attributes[1].offset = sizeof(float) * 3;
+//    vertDesc.attributes[1].bufferIndex = 0;
 //
-//        vertDesc.attributes[2].format = MTLVertexFormatFloat2;
-//        vertDesc.attributes[2].offset = sizeof(float) * 3 + sizeof(float) * 4;
-//        vertDesc.attributes[1].bufferIndex = 0;
+//    vertDesc.attributes[2].format = MTLVertexFormatFloat2;
+//    vertDesc.attributes[2].offset = sizeof(float) * 3 + sizeof(float) * 4;
+//    vertDesc.attributes[1].bufferIndex = 0;
 //
-//        vertDesc.layouts[0].stride = sizeof(float) * 3 + sizeof(float) * 4 + sizeof(float) * 2;
+//    vertDesc.layouts[0].stride = sizeof(float) * 3 + sizeof(float) * 4 + sizeof(float) * 2;
 //
-//        Vertex a = Vertex((float[3]){-0.5, 0.5, 0},(float[4]){1, 0, 0, 1},  (float[2]){0, 1});
-//        Vertex b = Vertex((float[3]){-0.5, -0.5, 0},(float[4]){0, 1, 0, 1},  (float[2]){0, 0});
-//        Vertex c = Vertex((float[3]){0.5, -0.5, 0}, (float[4]){0, 0, 1, 1},  (float[2]){1, 0});
-//        Vertex d = Vertex((float[3]){0.5, 0.5, 0},  (float[4]){1, 0, 1, 1},  (float[2]){1, 1});
+//    Vertex a = Vertex((float[3]){-0.5, 0.5, 0},(float[4]){1, 0, 0, 1},  (float[2]){0, 1});
+//    Vertex b = Vertex((float[3]){-0.5, -0.5, 0},(float[4]){0, 1, 0, 1},  (float[2]){0, 0});
+//    Vertex c = Vertex((float[3]){0.5, -0.5, 0}, (float[4]){0, 0, 1, 1},  (float[2]){1, 0});
+//    Vertex d = Vertex((float[3]){0.5, 0.5, 0},  (float[4]){1, 0, 1, 1},  (float[2]){1, 1});
 //
-//        Vertex vertices[4] = {a, b, c, d};
+//    Vertex vertices[4] = {a, b, c, d};
 //
-//        //indices
-//        uint16_t indices[6] = {
-//            0,1,2,
-//            2,3,0
-//        };
+//    //indices
+//    uint16_t indices[6] = {
+//        0,1,2,
+//        2,3,0
+//    };
 //
-//        id<MTLBuffer> vertexBuffer = [metalDevice newBufferWithBytes:(void *)vertices length:sizeof(Vertex)*4 options: MTLResourceCPUCacheModeDefaultCache];
-//        id<MTLBuffer> indexBuffer = [metalDevice newBufferWithBytes:(void *)indices length:sizeof(uint16_t)*6 options: MTLResourceCPUCacheModeDefaultCache];
+//    id<MTLBuffer> vertexBuffer = [metalDevice newBufferWithBytes:(void *)vertices length:sizeof(Vertex)*4 options: MTLResourceCPUCacheModeDefaultCache];
+//    id<MTLBuffer> indexBuffer = [metalDevice newBufferWithBytes:(void *)indices length:sizeof(uint16_t)*6 options: MTLResourceCPUCacheModeDefaultCache];
 //
 //    NSString *source = @"#include <metal_stdlib>\r\nusing namespace metal;\r\n\r\nstruct ModelConstants {\r\n    float4x4 modelViewMatrix;\r\n};\r\n\r\nstruct VertexIn {\r\n    float4 position [[attribute(0)]];\r\n    float4 color [[attribute(1)]];\r\n    float2 textureCoordinates [[attribute(2)]];\r\n};\r\n\r\nstruct VertexOut {\r\n    float4 position [[position]];\r\n    float4 color;\r\n    float2 textureCoordinates;\r\n};\r\n\r\nvertex VertexOut vertex_shader(const VertexIn vertexIn [[stage_in]]) {\r\n    VertexOut vertexOut;\r\n    vertexOut.position = vertexIn.position;\r\n    \r\n    vertexOut.color = vertexIn.color;\r\n    vertexOut.textureCoordinates = vertexIn.textureCoordinates;\r\n    return vertexOut;\r\n}\r\n\r\nfragment half4 fragment_shader(VertexOut vertexIn [[stage_in]]) {\r\n    return half4(vertexIn.color);\r\n}\r\n\r\nfragment half4 textured_fragment(VertexOut vertexIn [[stage_in]],\r\n                                 sampler sampler2d [[sampler(0)]],\r\ntexture2d<float> texture [[texture(0)]]){\r\n    float4 color = texture.sample(sampler2d, vertexIn.textureCoordinates);\r\n    return half4(color.r, color.g, color.b, 1);\r\n}";
 //
-//        NSError *errors;
-//        id<MTLLibrary> lib = [metalDevice newLibraryWithSource:source options:nil error:&errors];
+//    NSError *errors;
+//    id<MTLLibrary> lib = [metalDevice newLibraryWithSource:source options:nil error:&errors];
 //
-//        if (lib == nil) {
+//    if (lib == nil) {
 //
-//            if (errors != nil)
-//                throw ShaderError(errors);
-//            else
-//                throw "Failed to compile shader";
-//        }
-//
-//        // pipeline state stuff
-//        id<MTLFunction> vertexFunc = [lib newFunctionWithName:@"vertex_shader"];
-//        id<MTLFunction> fragmentFunc = [lib newFunctionWithName:@"fragment_shader"];
-//        if (vertexFunc == nil || fragmentFunc == nil)
-//            throw "Failed to create function";
-//
-//        MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-//        pipelineDescriptor.vertexFunction = vertexFunc;
-//        pipelineDescriptor.fragmentFunction = fragmentFunc;
-//        pipelineDescriptor.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
-//
-//        pipelineDescriptor.vertexDescriptor = vertDesc;
-//
-//        renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
-//                                       pipelineDescriptor error:&errors];
-//
-//    if (currentSwapChain != nil) {
-//        renderPassDescriptor.colorAttachments[0].texture = this->currentSwapChain->drawable.texture;
+//        if (errors != nil)
+//            throw ShaderError(errors);
+//        else
+//            throw "Failed to compile shader";
 //    }
+//
+//    // pipeline state stuff
+//    id<MTLFunction> vertexFunc = [lib newFunctionWithName:@"vertex_shader"];
+//    id<MTLFunction> fragmentFunc = [lib newFunctionWithName:@"fragment_shader"];
+//    if (vertexFunc == nil || fragmentFunc == nil)
+//        throw "Failed to create function";
+//
+//    MTLRenderPipelineDescriptor *pipelineDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
+//    pipelineDescriptor.vertexFunction = vertexFunc;
+//    pipelineDescriptor.fragmentFunction = fragmentFunc;
+//    pipelineDescriptor.colorAttachments[0].pixelFormat = currentRenderTarget->metalTexture.pixelFormat;
+//
+//    pipelineDescriptor.vertexDescriptor = vertDesc;
+//
+//    renderPipelineState = [metalDevice newRenderPipelineStateWithDescriptor:
+//                           pipelineDescriptor error:&errors];
+//
+//    renderPassDescriptor.colorAttachments[0].texture = currentRenderTarget->metalTexture;
 //    renderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
 //    renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.8,0.0,0.0,1.0);
 //
 //    id<MTLRenderCommandEncoder> commandEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
 //
-//
-//    MTLViewport ret;
-//    ret.originX = 200;
-//    ret.originY = 100;
-//    ret.width   = 2000;
-//    ret.height  = 800;
-//    ret.znear   = 0;
-//    ret.zfar    = 1.0;
-//    [commandEncoder setViewport:ret];
 //    [commandEncoder setFragmentSamplerState:samplerState atIndex:0];
 //
-//        [commandEncoder setRenderPipelineState:renderPipelineState];
-//        [commandEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
-//        [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:6 indexType:MTLIndexTypeUInt16 indexBuffer:indexBuffer indexBufferOffset:0];
-//        [commandEncoder endEncoding];
-//
+//    [commandEncoder setRenderPipelineState:renderPipelineState];
+//    [commandEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
+//    [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:6 indexType:MTLIndexTypeUInt16 indexBuffer:indexBuffer indexBufferOffset:0];
+//    [commandEncoder endEncoding];
+    
+    
     try {
         if (!currentVertexShader)
             throw "No vertex shader specified";
@@ -1007,18 +997,18 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
             currentVertexShader->UploadParams(commandEncoder);
             currentPixelShader->UploadParams(commandEncoder);
 
-//            if (currentVertexBuffer) {
-//                for (int i = 0; i < currentVertexBuffer->vbData->num; i++) {
-//                    blog(LOG_DEBUG, "vb data #%d:, %f %f %f", i, currentVertexBuffer->vbData->points[i].x, currentVertexBuffer->vbData->points[i].y, currentVertexBuffer->vbData->points[i].z);
-//                }
-//
+            if (currentVertexBuffer) {
+                for (int i = 0; i < currentVertexBuffer->vbData->num; i++) {
+                    blog(LOG_DEBUG, "vb data #%d:, %f %f %f", i, currentVertexBuffer->vbData->points[i].x, currentVertexBuffer->vbData->points[i].y, currentVertexBuffer->vbData->points[i].z);
+                }
+
 //                blog(LOG_DEBUG, "vertex shader: %s", currentVertexShader->metalShader.c_str());
 //                blog(LOG_DEBUG, "pixel shader: %s", currentPixelShader->metalShader.c_str());
 //
 //                printMatrix(currentViewMatrix, "current view");
 //                printMatrix(currentProjectionMatrix, "current projection");
 //                printMatrix(currentViewProjectionMatrix, "current view projection");
-//            }
+            }
 
             UploadVertexBuffer(commandEncoder);
             UploadTextures(commandEncoder);
