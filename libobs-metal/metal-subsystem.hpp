@@ -241,8 +241,7 @@ struct gs_vertex_buffer : gs_object {
     id<MTLBuffer>              tangentBuffer = nil;
     vector<id<MTLBuffer>> uvBuffers;
     
-    inline id<MTLBuffer> PrepareBuffer(void *array, size_t elementSize, string *name);
-    void PrepareBuffers(gs_vb_data *data);
+    void FlushBuffers(gs_vb_data *data);
     
     void MakeBufferList(gs_vertex_shader *shader,
                         std::vector<id<MTLBuffer>> &buffers);
@@ -275,7 +274,7 @@ struct gs_index_buffer : gs_object {
     id<MTLBuffer>       metalIndexBuffer;
     MTLIndexType        metalIndexType;
     
-    void PrepareBuffer(void *new_indices);
+    void FlushBuffer(void *indices);
     void InitBuffer();
     
     inline void Release() {
@@ -487,8 +486,6 @@ struct gs_device {
     
     mutex mutexObj;
     vector<id<MTLBuffer>> curBufferPool;
-    queue<vector<id<MTLBuffer>>> bufferPools;
-    vector<id<MTLBuffer>>  unusedBufferPool;
     
     matrix4 currentProjectionMatrix;
     matrix4 currentViewMatrix;
@@ -510,9 +507,6 @@ struct gs_device {
     void Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVerts);
     
     id<MTLBuffer> CreateBuffer(void *data, size_t length);
-    id<MTLBuffer> GetBuffer(void *data, size_t length);
-    void PushResources();
-    void ReleaseResources();
     void RebuildDevice();
     void InitDevice(uint32_t index);
     

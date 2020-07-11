@@ -1002,8 +1002,8 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
                     blog(LOG_DEBUG, "vb data #%d:, %f %f %f", i, currentVertexBuffer->vbData->points[i].x, currentVertexBuffer->vbData->points[i].y, currentVertexBuffer->vbData->points[i].z);
                 }
 
-//                blog(LOG_DEBUG, "vertex shader: %s", currentVertexShader->metalShader.c_str());
-//                blog(LOG_DEBUG, "pixel shader: %s", currentPixelShader->metalShader.c_str());
+                blog(LOG_DEBUG, "vertex shader: %s", currentVertexShader->metalShader.c_str());
+                blog(LOG_DEBUG, "pixel shader: %s", currentPixelShader->metalShader.c_str());
 //
 //                printMatrix(currentViewMatrix, "current view");
 //                printMatrix(currentProjectionMatrix, "current projection");
@@ -1046,41 +1046,6 @@ inline id<MTLBuffer> gs_device::CreateBuffer(void *data, size_t length)
         throw "Failed to create buffer";
     return buffer;
 }
-
-id<MTLBuffer> gs_device::GetBuffer(void *data, size_t length)
-{
-    lock_guard<mutex> lock(mutexObj);
-    auto target = find_if(unusedBufferPool.begin(), unusedBufferPool.end(),
-                          [length](id<MTLBuffer> b) { return b.length >= length; });
-    if (target == unusedBufferPool.end()) {
-        id<MTLBuffer> newBuffer = CreateBuffer(data, length);
-        curBufferPool.push_back(newBuffer);
-        return newBuffer;
-    }
-    
-    id<MTLBuffer> targetBuffer = *target;
-    unusedBufferPool.erase(target);
-    curBufferPool.push_back(targetBuffer);
-    memcpy(targetBuffer.contents, data, length);
-    return targetBuffer;
-}
-
-void gs_device::PushResources()
-{
-    lock_guard<mutex> lock(mutexObj);
-    bufferPools.push(curBufferPool);
-    curBufferPool.clear();
-}
-
-void gs_device::ReleaseResources()
-{
-    lock_guard<mutex> lock(mutexObj);
-    vector<id<MTLBuffer>> pool = bufferPools.front();
-    unusedBufferPool.insert(unusedBufferPool.end(),
-                            pool.begin(), pool.end());
-    bufferPools.pop();
-}
-
 
 void device_end_scene(gs_device_t *device)
 {
@@ -1134,34 +1099,24 @@ void device_present(gs_device_t *device)
     if (device->currentSwapChain) {
         [device->commandBuffer presentDrawable:
          device->currentSwapChain->drawable];
-    } else {
-        blog(LOG_WARNING, "device_present (Metal): No active swap");
-    }
-
-    device->PushResources();
-
-    [device->commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buf) {
-        device->ReleaseResources();
-
-        UNUSED_PARAMETER(buf);
-    }];
-    [device->commandBuffer commit];
-    device->commandBuffer = nil;
-    
-    if (device->currentSwapChain)
-        device->currentSwapChain->Release();
-}
-
-void device_flush(gs_device_t *device)
-{
-    if (device->commandBuffer != nil) {
-        device->PushResources();
         
         [device->commandBuffer commit];
         [device->commandBuffer waitUntilCompleted];
         device->commandBuffer = nil;
         
-        device->ReleaseResources();
+        device->currentSwapChain->Release();
+    } else {
+        blog(LOG_WARNING, "device_present (Metal): No active swap");
+    }
+}
+
+void device_flush(gs_device_t *device)
+{
+    if (device->commandBuffer != nil) {
+        
+        [device->commandBuffer commit];
+        [device->commandBuffer waitUntilCompleted];
+        device->commandBuffer = nil;
         
         if (device->currentStageSurface) {
             device->currentStageSurface->DownloadTexture();
@@ -1712,14 +1667,14 @@ void gs_vertexbuffer_destroy(gs_vertbuffer_t *vertbuffer)
 static inline void gs_vertexbuffer_flush_internal(gs_vertbuffer_t *vertbuffer, gs_vb_data *data)
 {
     assert(vertbuffer->objectType == GS_VERTEX_BUFFER);
-    
+
     if (!vertbuffer->isDynamic) {
-        blog(LOG_ERROR, "gs_vertexbuffer_flush: vertex buffer is not "
-             "dynamic");
+        blog(LOG_ERROR, "gs_vertexbuffer_flush: vertex buffer is "
+                "not dynamic");
         return;
     }
     
-    vertbuffer->PrepareBuffers(data);
+    vertbuffer->FlushBuffers(data);
 }
 
 void gs_vertexbuffer_flush(gs_vertbuffer_t *vertbuffer)
@@ -1756,7 +1711,9 @@ static inline void gs_indexbuffer_flush_internal(gs_indexbuffer_t *indexbuffer, 
         return;
     }
     
-    indexbuffer->PrepareBuffer(indices);
+    
+    
+    indexbuffer->FlushBuffer(indices);
 }
 
 void gs_indexbuffer_flush(gs_indexbuffer_t *indexbuffer)

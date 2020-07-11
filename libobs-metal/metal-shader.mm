@@ -187,7 +187,9 @@ void gs_shader::UploadParams(id<MTLRenderCommandEncoder> commandEncoder)
    if (!constantSize)
        return;
 
-   id<MTLBuffer> cnt = device->GetBuffer(ptr, data.size());
+    MTLResourceOptions options = MTLResourceCPUCacheModeWriteCombined | MTLResourceStorageModeShared;
+    
+    id<MTLBuffer> cnt = [device->metalDevice newBufferWithBytes:&ptr length:data.size() options:options];
 #if _DEBUG
    cnt.label = @"constants";
 #endif

@@ -33,7 +33,7 @@ metalIndexType(ConvertGSIndexType(indexType))
         InitBuffer();
 }
 
-void gs_index_buffer::PrepareBuffer(void *new_indices)
+void gs_index_buffer::FlushBuffer(void *new_indices)
 {
     assert(isDynamic);
     
@@ -42,10 +42,7 @@ void gs_index_buffer::PrepareBuffer(void *new_indices)
         indices = new_indices;
     }
     
-    metalIndexBuffer = device->GetBuffer(new_indices, len);
-#if _DEBUG
-    metalIndexBuffer.label = @"index";
-#endif
+    InitBuffer();
 }
 
 void gs_index_buffer::InitBuffer()

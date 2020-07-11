@@ -20,42 +20,33 @@
        InitBuffers();
 }
 
- inline id<MTLBuffer> gs_vertex_buffer::PrepareBuffer(void *array, size_t elementSize, string *name)
-{
-   id<MTLBuffer> b = device->GetBuffer(array, elementSize * vbData->num);
-#if _DEBUG
-    b.label = [NSString stringWithUTF8String:name->c_str()];
-#endif
-   return b;
-}
-
- void gs_vertex_buffer::PrepareBuffers(gs_vb_data *data)
+ void gs_vertex_buffer::FlushBuffers(gs_vb_data *data)
 {
    assert(isDynamic);
+    
+    size_t num_tex = data->num_tex < uvBuffers.size() ? data->num_tex : uvBuffers.size();
     
     if(vbData != nil && vbData != data) {
         gs_vbdata_destroy(vbData);
         vbData = data;
     }
     
-   vertexBuffer = PrepareBuffer(data->points, sizeof(vec3), new string("point"));
-   if (data->normals)
-       normalBuffer = PrepareBuffer(data->normals, sizeof(vec3),
-               new string("normal"));
-   if (data->tangents)
-       tangentBuffer = PrepareBuffer(data->tangents, sizeof(vec3),
-               new string("color"));
-   if (data->colors)
-       colorBuffer = PrepareBuffer(data->colors, sizeof(uint32_t),
-               new string("tangent"));
+    if (data->points)
+        vertexBuffer = InitBuffer(sizeof(vec3), data->points, "point");
 
-   for (size_t i = 0; i < data->num_tex; i++) {
-       gs_tvertarray &tv = data->tvarray[i];
-       uvBuffers.push_back(PrepareBuffer(tv.array,
-               tv.width * sizeof(float), new string("texcoord")));
-   }
-    
-    
+    if (normalBuffer && data->normals)
+        normalBuffer = InitBuffer(sizeof(vec3), data->normals, "normal");
+
+    if (tangentBuffer && data->tangents)
+        tangentBuffer = InitBuffer(sizeof(vec3), data->tangents, "tangent");
+
+    if (colorBuffer && data->colors)
+        colorBuffer = InitBuffer(sizeof(uint32_t), data->colors, "color");
+
+    for (size_t i = 0; i < num_tex; i++) {
+        gs_tvertarray &tv = data->tvarray[i];
+        uvBuffers[i] = InitBuffer(tv.width * sizeof(float), tv.array, "texcoord");
+    }
 }
 
  static inline void PushBuffer(vector<id<MTLBuffer>> &buffers,
@@ -120,22 +111,23 @@
                "normal");
    if (vbData->tangents)
        tangentBuffer = InitBuffer(sizeof(vec3), vbData->tangents,
-               "color");
+               "tangents");
    if (vbData->colors)
        colorBuffer = InitBuffer(sizeof(uint32_t), vbData->colors,
-               "tangent");
-   for (struct gs_tvertarray *tverts = vbData->tvarray;
-        tverts != vbData->tvarray + vbData->num_tex;
-        tverts++) {
-       if (tverts->width != 2 && tverts->width != 4)
-           throw "Invalid texture vertex size specified";
-       if (!tverts->array)
-           throw "No texture vertices specified";
+               "colors");
+    
+    for (size_t i = 0; i < vbData->num_tex; i++) {
+        struct gs_tvertarray *tverts = vbData->tvarray + i;
 
-       id<MTLBuffer> buffer = InitBuffer(tverts->width * sizeof(float),
-               tverts->array, "texcoord");
-       uvBuffers.emplace_back(buffer);
-   }
+        if (tverts->width != 2 && tverts->width != 4)
+            throw "Invalid texture vertex size specified";
+        if (!tverts->array)
+            throw "No texture vertices specified";
+
+        id<MTLBuffer> buffer = InitBuffer(tverts->width * sizeof(float),
+                tverts->array, "texcoord");
+        uvBuffers.emplace_back(buffer);
+    }
 }
 
 void gs_vertex_buffer::Rebuild()
