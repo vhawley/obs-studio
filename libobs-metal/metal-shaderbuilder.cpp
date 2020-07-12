@@ -125,13 +125,7 @@ static inline const char *GetType(const string &type)
         }
         throw "Unknown type";
     } if (type.compare(0, 5, "float") == 0) {
-        switch (*(type.end() - 1)) {
-            case '2': return "float2";
-            case '3': return "float3";
-            case '4': return "float4";
-            case 't': return "float";
-        }
-        throw "Unknown type";
+        return type.c_str();
     } else if (type.compare(0, 10, "min16float") == 0) {
 		switch (*(type.end() - 1)) {
 			case '2': return "half2";

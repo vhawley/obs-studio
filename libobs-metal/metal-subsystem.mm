@@ -853,7 +853,7 @@ struct Vertex {
     }
 };
 
-static inline void printMatrix(matrix4 matrix, string name) {
+static inline void printMatrix(matrix4 &matrix, string name) {
     blog(LOG_DEBUG, "%s matrix: [%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f]", name.c_str(), matrix.x.x, matrix.x.y, matrix.x.z, matrix.x.w, matrix.y.x,matrix.y.y, matrix.y.z, matrix.y.w, matrix.z.x, matrix.z.y, matrix.z.z, matrix.z.w, matrix.t.x, matrix.t.y, matrix.t.z, matrix.t.w);
 }
 
@@ -878,7 +878,7 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 //
 //    vertDesc.attributes[2].format = MTLVertexFormatFloat2;
 //    vertDesc.attributes[2].offset = sizeof(float) * 3 + sizeof(float) * 4;
-//    vertDesc.attributes[1].bufferIndex = 0;
+//    vertDesc.attributes[2].bufferIndex = 0;
 //
 //    vertDesc.layouts[0].stride = sizeof(float) * 3 + sizeof(float) * 4 + sizeof(float) * 2;
 //
@@ -913,7 +913,11 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 //
 //    // pipeline state stuff
 //    id<MTLFunction> vertexFunc = [lib newFunctionWithName:@"vertex_shader"];
-//    id<MTLFunction> fragmentFunc = [lib newFunctionWithName:@"fragment_shader"];
+//    id<MTLFunction> fragmentFunc = nil;
+//    if (currentTextures[0] != nullptr)
+//        fragmentFunc = [lib newFunctionWithName:@"textured_fragment"];
+//    else
+//        fragmentFunc = [lib newFunctionWithName:@"fragment_shader"];
 //    if (vertexFunc == nil || fragmentFunc == nil)
 //        throw "Failed to create function";
 //
@@ -937,6 +941,8 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
 //
 //    [commandEncoder setRenderPipelineState:renderPipelineState];
 //    [commandEncoder setVertexBuffer:vertexBuffer offset:0 atIndex:0];
+//    if (currentTextures[0] != nullptr)
+//        [commandEncoder setFragmentTexture:currentTextures[0]->metalTexture atIndex:0];
 //    [commandEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:6 indexType:MTLIndexTypeUInt16 indexBuffer:indexBuffer indexBufferOffset:0];
 //    [commandEncoder endEncoding];
     
@@ -1000,14 +1006,41 @@ void gs_device::Draw(gs_draw_mode drawMode, uint32_t startVert, uint32_t numVert
             if (currentVertexBuffer) {
                 for (int i = 0; i < currentVertexBuffer->vbData->num; i++) {
                     blog(LOG_DEBUG, "vb data #%d:, %f %f %f", i, currentVertexBuffer->vbData->points[i].x, currentVertexBuffer->vbData->points[i].y, currentVertexBuffer->vbData->points[i].z);
+                    
+                    vec4 pos;
+                    pos.x = currentVertexBuffer->vbData->points[i].x;
+                    pos.y = currentVertexBuffer->vbData->points[i].y;
+                    pos.z = currentVertexBuffer->vbData->points[i].z;
+                    pos.w = 1.0;
+                    
+                    vec4 posout = vec4();
+                    posout.x += currentViewProjectionMatrix.x.x * pos.x;
+                    posout.x += currentViewProjectionMatrix.x.y * pos.y;
+                    posout.x += currentViewProjectionMatrix.x.z * pos.z;
+                    posout.x += currentViewProjectionMatrix.x.w * pos.w;
+                    
+                    posout.y += currentViewProjectionMatrix.y.x * pos.x;
+                    posout.y += currentViewProjectionMatrix.y.y * pos.y;
+                    posout.y += currentViewProjectionMatrix.y.z * pos.z;
+                    posout.y += currentViewProjectionMatrix.y.w * pos.w;
+                    
+                    posout.z += currentViewProjectionMatrix.z.x * pos.x;
+                    posout.z += currentViewProjectionMatrix.z.y * pos.y;
+                    posout.z += currentViewProjectionMatrix.z.z * pos.z;
+                    posout.z += currentViewProjectionMatrix.z.w * pos.w;
+                    
+                    posout.w += currentViewProjectionMatrix.t.x * pos.x;
+                    posout.w += currentViewProjectionMatrix.t.y * pos.y;
+                    posout.w += currentViewProjectionMatrix.t.z * pos.z;
+                    posout.w += currentViewProjectionMatrix.t.w * pos.w;
+                    
+                    blog(LOG_DEBUG, "pos out #%d:, %f %f %f %f", i, posout.x, posout.y, posout.z, posout.w);
                 }
 
                 blog(LOG_DEBUG, "vertex shader: %s", currentVertexShader->metalShader.c_str());
                 blog(LOG_DEBUG, "pixel shader: %s", currentPixelShader->metalShader.c_str());
-//
-//                printMatrix(currentViewMatrix, "current view");
-//                printMatrix(currentProjectionMatrix, "current projection");
-//                printMatrix(currentViewProjectionMatrix, "current view projection");
+                
+                
             }
 
             UploadVertexBuffer(commandEncoder);
